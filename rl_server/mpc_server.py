@@ -1,8 +1,8 @@
-#!/usr/bin/env python
-from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
-import SocketServer
+#!/usr/bin/env python3
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import socketserver
 import base64
-import urllib
+import urllib.parse
 import sys
 import os
 import json
@@ -69,12 +69,12 @@ def make_request_handler(input_dict):
         def do_POST(self):
             content_length = int(self.headers['Content-Length'])
             post_data = json.loads(self.rfile.read(content_length))
-            print post_data
+            print(post_data)
 
             if ( 'pastThroughput' in post_data ):
                 # @Hongzi: this is just the summary of throughput/quality at the end of the load
                 # so we don't want to use this information to send back a new quality
-                print "Summary: ", post_data
+                print("Summary: ", post_data)
             else:
                 # option 1. reward for just quality
                 # reward = post_data['lastquality']
@@ -233,7 +233,7 @@ def make_request_handler(input_dict):
                     send_data = str(best_combo[0])
 
                 end = time.time()
-                #print "TOOK: " + str(end-start)
+                #print("TOOK: " + str(end-start))
 
                 end_of_video = False
                 if ( post_data['lastRequest'] == TOTAL_VIDEO_CHUNKS ):
@@ -260,7 +260,7 @@ def make_request_handler(input_dict):
                     self.s_batch.append(state)
 
         def do_GET(self):
-            print >> sys.stderr, 'GOT REQ'
+            print('GOT REQ', file=sys.stderr)
             self.send_response(200)
             #self.send_header('Cache-Control', 'Cache-Control: no-cache, no-store, must-revalidate max-age=0')
             self.send_header('Cache-Control', 'max-age=3000')
@@ -285,7 +285,7 @@ def run(server_class=HTTPServer, port=8333, log_file_path=LOG_FILE):
     for combo in itertools.product([0,1,2,3,4,5], repeat=5):
         CHUNK_COMBO_OPTIONS.append(combo)
 
-    with open(log_file_path, 'wb') as log_file:
+    with open(log_file_path, 'w') as log_file:
 
         s_batch = [np.zeros((S_INFO, S_LEN))]
 
@@ -307,7 +307,7 @@ def run(server_class=HTTPServer, port=8333, log_file_path=LOG_FILE):
 
         server_address = ('localhost', port)
         httpd = server_class(server_address, handler_class)
-        print 'Listening on port ' + str(port)
+        print('Listening on port ' + str(port))
         httpd.serve_forever()
 
 
@@ -323,7 +323,7 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print "Keyboard interrupted."
+        print("Keyboard interrupted.")
         try:
             sys.exit(0)
         except SystemExit:

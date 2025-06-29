@@ -12,7 +12,7 @@ buffer_occupancies = []
 rebuffer_times = []
 rewards = []
 
-with open(LOG_PATH, 'rb') as f:
+with open(LOG_PATH, 'r') as f:
     for line in f:
         parse = line.split()
         time_stamp.append(float(parse[0]))

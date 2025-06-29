@@ -1,8 +1,8 @@
-#!/usr/bin/env python
-from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
-import SocketServer
+#!/usr/bin/env python3
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import socketserver
 import base64
-import urllib
+import urllib.parse
 import sys
 import os
 import json
@@ -73,12 +73,12 @@ def make_request_handler(input_dict):
         def do_POST(self):
             content_length = int(self.headers['Content-Length'])
             post_data = json.loads(self.rfile.read(content_length))
-            print post_data
+            print(post_data)
 
             if ( 'pastThroughput' in post_data ):
                 # @Hongzi: this is just the summary of throughput/quality at the end of the load
                 # so we don't want to use this information to send back a new quality
-                print "Summary: ", post_data
+                print("Summary: ", post_data)
             else:
                 # option 1. reward for just quality
                 # reward = post_data['lastquality']
@@ -131,7 +131,7 @@ def make_request_handler(input_dict):
                 state = np.roll(state, -1, axis=1)
 
                 next_video_chunk_sizes = []
-                for i in xrange(A_DIM):
+                for i in range(A_DIM):
                     next_video_chunk_sizes.append(get_chunk_size(i, self.input_dict['video_chunk_coount']))
 
                 # this should be S_INFO number of terms
@@ -194,7 +194,7 @@ def make_request_handler(input_dict):
                     self.s_batch.append(state)
 
         def do_GET(self):
-            print >> sys.stderr, 'GOT REQ'
+            print('GOT REQ', file=sys.stderr)
             self.send_response(200)
             #self.send_header('Cache-Control', 'Cache-Control: no-cache, no-store, must-revalidate max-age=0')
             self.send_header('Cache-Control', 'max-age=3000')
@@ -217,7 +217,7 @@ def run(server_class=HTTPServer, port=8333, log_file_path=LOG_FILE):
     if not os.path.exists(SUMMARY_DIR):
         os.makedirs(SUMMARY_DIR)
 
-    with tf.Session() as sess, open(log_file_path, 'wb') as log_file:
+    with tf.Session() as sess, open(log_file_path, 'w') as log_file:
 
         actor = a3c.ActorNetwork(sess,
                                  state_dim=[S_INFO, S_LEN], action_dim=A_DIM,
@@ -264,7 +264,7 @@ def run(server_class=HTTPServer, port=8333, log_file_path=LOG_FILE):
 
         server_address = ('localhost', port)
         httpd = server_class(server_address, handler_class)
-        print 'Listening on port ' + str(port)
+        print('Listening on port ' + str(port))
         httpd.serve_forever()
 
 
@@ -280,7 +280,7 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print "Keyboard interrupted."
+        print("Keyboard interrupted.")
         try:
             sys.exit(0)
         except SystemExit:

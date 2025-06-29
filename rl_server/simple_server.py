@@ -1,8 +1,8 @@
-#!/usr/bin/env python
-from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
-import SocketServer
+#!/usr/bin/env python3
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import socketserver
 import base64
-import urllib
+import urllib.parse
 import sys
 import os
 import logging
@@ -38,7 +38,7 @@ def make_request_handler(input_dict):
             content_length = int(self.headers['Content-Length'])
             post_data = json.loads(self.rfile.read(content_length))
             
-            print post_data
+            print(post_data)
             send_data = ""
 
             if ( 'lastquality' in post_data ):
@@ -81,7 +81,7 @@ def make_request_handler(input_dict):
             self.wfile.write(send_data)
 
         def do_GET(self):
-            print >> sys.stderr, 'GOT REQ'
+            print('GOT REQ', file=sys.stderr)
             self.send_response(200)
             #self.send_header('Cache-Control', 'Cache-Control: no-cache, no-store, must-revalidate max-age=0')
             self.send_header('Cache-Control', 'max-age=3000')
@@ -100,7 +100,7 @@ def run(server_class=HTTPServer, port=8333, log_file_path=LOG_FILE):
     if not os.path.exists(SUMMARY_DIR):
         os.makedirs(SUMMARY_DIR)
 
-    with open(log_file_path, 'wb') as log_file:
+    with open(log_file_path, 'w') as log_file:
 
         last_bit_rate = DEFAULT_QUALITY
         last_total_rebuf = 0 
@@ -112,7 +112,7 @@ def run(server_class=HTTPServer, port=8333, log_file_path=LOG_FILE):
 
         server_address = ('localhost', port)
         httpd = server_class(server_address, handler_class)
-        print 'Listening on port ' + str(port)
+        print('Listening on port ' + str(port))
         httpd.serve_forever()
 
 

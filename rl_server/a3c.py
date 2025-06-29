@@ -234,7 +234,7 @@ def compute_gradients(s_batch, a_batch, r_batch, terminal, actor, critic):
     else:
         R_batch[-1, 0] = v_batch[-1, 0]  # boot strap from last state
 
-    for t in reversed(xrange(ba_size - 1)):
+    for t in reversed(range(ba_size - 1)):
         R_batch[t, 0] = r_batch[t] + GAMMA * R_batch[t + 1, 0]
 
     td_batch = R_batch - v_batch
@@ -247,34 +247,33 @@ def compute_gradients(s_batch, a_batch, r_batch, terminal, actor, critic):
 
 def discount(x, gamma):
     """
-    Given vector x, computes a vector y such that
-    y[i] = x[i] + gamma * x[i+1] + gamma^2 x[i+2] + ...
+    Given vector x, compute a vector y such that y[i] = x[i] + gamma * y[i+1]
+    with y[len(x)-1] = x[len(x)-1]
     """
-    out = np.zeros(len(x))
-    out[-1] = x[-1]
-    for i in reversed(xrange(len(x)-1)):
-        out[i] = x[i] + gamma*out[i+1]
-    assert x.ndim >= 1
-    # More efficient version:
-    # scipy.signal.lfilter([1],[1,-gamma],x[::-1], axis=0)[::-1]
-    return out
+    ba_size = len(x)
+    y = np.zeros(ba_size)
+    y[ba_size - 1] = x[ba_size - 1]
+    for t in reversed(range(ba_size - 1)):
+        y[t] = x[t] + gamma * y[t + 1]
+    return y
 
 
 def compute_entropy(x):
     """
-    Given vector x, computes the entropy
-    H(x) = - sum( p * log(p))
+    Given vector x, compute the entropy
     """
     H = 0.0
-    for i in xrange(len(x)):
-        if 0 < x[i] < 1:
-            H -= x[i] * np.log(x[i])
+    for i in reversed(range(len(x)-1)):
+        H += -(x[i] * np.log(x[i] + 1e-8) + (1.0 - x[i]) * np.log(1.0 - x[i] + 1e-8))
     return H
 
 
 def build_summaries():
+    """
+    Create summaries for logging
+    """
     td_loss = tf.Variable(0.)
-    tf.summary.scalar("TD_loss", td_loss)
+    tf.summary.scalar("Loss", td_loss)
     eps_total_reward = tf.Variable(0.)
     tf.summary.scalar("Eps_total_reward", eps_total_reward)
     avg_entropy = tf.Variable(0.)
