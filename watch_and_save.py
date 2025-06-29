@@ -35,6 +35,7 @@ def main():
 
     # NOTE: testing
     args.protocol = "tcp"
+    run_time = 200 # seconds
     
     print(f"Starting video monitoring with {args.protocol.upper()} protocol...")
     
@@ -60,8 +61,9 @@ def main():
     target_url = "http://localhost:5201/myindex_fastMPC.html"
     
     # Navigate & load page
+    driver.set_page_load_timeout(10)
     driver.get(target_url)
-    time.sleep(10)  # allow DOM, dash.js, and media to load
+    # time.sleep(10)  # allow DOM, dash.js, and media to load
     video = driver.find_element(By.ID, "videoPlayer")
     
     # NOTE: (zliu) consider removing client side metrics monitoring since we are using custom dash.js with server side metrics
@@ -271,9 +273,16 @@ def main():
         with open(f"switches_{args.protocol}.log","w") as f:
             json.dump(switches, f, indent=2)
         print(f",  {len(switches)} switches logged to switches.log")
-    # Cleanup
-    driver.quit()
     '''
+    # Cleanup
+    sleep(run_time)
+    print("quitting webdriver")
+    driver.quit()
+
+    # Cleanup ABR algorithm server
+    print("terminating abr server")
+    proc.terminate()
+    proc.wait()
 
 if __name__ == "__main__":
     main()
