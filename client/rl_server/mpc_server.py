@@ -13,7 +13,7 @@ import numpy as np
 import time
 import itertools
 
-################## ROBUST MPC ###################
+######################## FAST MPC #######################
 
 S_INFO = 5  # bit_rate, buffer_size, rebuffering_time, bandwidth_measurement, chunk_til_video_end
 S_LEN = 8  # take how many frames in the past
@@ -38,10 +38,6 @@ LOG_FILE = './results/log'
 NN_MODEL = None
 
 CHUNK_COMBO_OPTIONS = []
-
-# past errors in bandwidth
-past_errors = []
-past_bandwidth_ests = []
 
 # video chunk sizes
 size_video1 = [2354772, 2123065, 2177073, 2160877, 2233056, 1941625, 2157535, 2290172, 2055469, 2169201, 2173522, 2102452, 2209463, 2275376, 2005399, 2152483, 2289689, 2059512, 2220726, 2156729, 2039773, 2176469, 2221506, 2044075, 2186790, 2105231, 2395588, 1972048, 2134614, 2164140, 2113193, 2147852, 2191074, 2286761, 2307787, 2143948, 1919781, 2147467, 2133870, 2146120, 2108491, 2184571, 2121928, 2219102, 2124950, 2246506, 1961140, 2155012, 1433658]
@@ -137,14 +133,9 @@ def make_request_handler(input_dict):
                     state[2, -1] = rebuffer_time / M_IN_K
                     state[3, -1] = float(video_chunk_size) / float(video_chunk_fetch_time) / M_IN_K  # kilo byte / ms
                     state[4, -1] = np.minimum(video_chunk_remain, CHUNK_TIL_VIDEO_END_CAP) / float(CHUNK_TIL_VIDEO_END_CAP)
-                    curr_error = 0 # defualt assumes that this is the first request so error is 0 since we have never predicted bandwidth
-                    if ( len(past_bandwidth_ests) > 0 ):
-                        curr_error  = abs(past_bandwidth_ests[-1]-state[3,-1])/float(state[3,-1])
-                    past_errors.append(curr_error)
                 except ZeroDivisionError:
                     # this should occur VERY rarely (1 out of 3000), should be a dash issue
                     # in this case we ignore the observation and roll back to an eariler one
-                    past_errors.append(0)
                     if len(self.s_batch) == 0:
                         state = [np.zeros((S_INFO, S_LEN))]
                     else:
@@ -172,23 +163,12 @@ def make_request_handler(input_dict):
                 bandwidth_sum = 0
                 for past_val in past_bandwidths:
                     bandwidth_sum += (1/float(past_val))
-                harmonic_bandwidth = 1.0/(bandwidth_sum/len(past_bandwidths))
-
-                # future bandwidth prediction
-                # divide by 1 + max of last 5 (or up to 5) errors
-                max_error = 0
-                error_pos = -5
-                if ( len(past_errors) < 5 ):
-                    error_pos = -len(past_errors)
-                max_error = float(max(past_errors[error_pos:]))
-                future_bandwidth = harmonic_bandwidth/(1+max_error)
-                past_bandwidth_ests.append(harmonic_bandwidth)
-
+                future_bandwidth = 1.0/(bandwidth_sum/len(past_bandwidths))
 
                 # future chunks length (try 4 if that many remaining)
                 last_index = int(post_data['lastRequest'])
                 future_chunk_length = MPC_FUTURE_CHUNK_COUNT
-                if ( TOTAL_VIDEO_CHUNKS - last_index < 5 ):
+                if ( TOTAL_VIDEO_CHUNKS - last_index < 4 ):
                     future_chunk_length = TOTAL_VIDEO_CHUNKS - last_index
 
                 # all possible combinations of 5 chunk bitrates (9^5 options)
@@ -234,7 +214,7 @@ def make_request_handler(input_dict):
                         last_quality = chunk_quality
                     # compute reward for this combination (one reward per 5-chunk combo)
                     # bitrates are in Mbits/s, rebuffer in seconds, and smoothness_diffs in Mbits/s
-                    
+
                     # linear reward 
                     #reward = (bitrate_sum/1000.) - (4.3*curr_rebuffer_time) - (smoothness_diffs/1000.)
 
@@ -264,12 +244,13 @@ def make_request_handler(input_dict):
                     self.input_dict['video_chunk_coount'] = 0
                     self.log_file.write('\n')  # so that in the log we know where video ends
 
+                encoded_data = send_data.encode('utf-8')
                 self.send_response(200)
                 self.send_header('Content-Type', 'text/plain')
-                self.send_header('Content-Length', len(send_data))
+                self.send_header('Content-Length', len(encoded_data))
                 self.send_header('Access-Control-Allow-Origin', "*")
                 self.end_headers()
-                self.wfile.write(send_data)
+                self.wfile.write(encoded_data)
 
                 # record [state, action, reward]
                 # put it here after training, notice there is a shift in reward storage
@@ -281,12 +262,13 @@ def make_request_handler(input_dict):
 
         def do_GET(self):
             print('GOT REQ', file=sys.stderr)
+            response = "console.log('here');"
             self.send_response(200)
             #self.send_header('Cache-Control', 'Cache-Control: no-cache, no-store, must-revalidate max-age=0')
             self.send_header('Cache-Control', 'max-age=3000')
-            self.send_header('Content-Length', 20)
+            self.send_header('Content-Length', len(response))
             self.end_headers()
-            self.wfile.write("console.log('here');")
+            self.wfile.write(response.encode('utf-8'))
 
         def log_message(self, format, *args):
             return
@@ -334,7 +316,7 @@ def run(server_class=HTTPServer, port=8333, log_file_path=LOG_FILE):
 def main():
     if len(sys.argv) == 2:
         trace_file = sys.argv[1]
-        run(log_file_path=LOG_FILE + '_robustMPC_' + trace_file)
+        run(log_file_path=LOG_FILE + '_fastMPC_' + trace_file)
     else:
         run()
 

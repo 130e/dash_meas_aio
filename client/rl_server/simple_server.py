@@ -73,21 +73,23 @@ def make_request_handler(input_dict):
                     self.input_dict['last_bit_rate'] = DEFAULT_QUALITY
                     self.log_file.write('\n')  # so that in the log we know where video ends
 
+            encoded_data = send_data.encode('utf-8')
             self.send_response(200)
             self.send_header('Content-Type', 'text/plain')
-            self.send_header('Content-Length', len(send_data))
+            self.send_header('Content-Length', len(encoded_data))
             self.send_header('Access-Control-Allow-Origin', "*")
             self.end_headers()
-            self.wfile.write(send_data)
+            self.wfile.write(encoded_data)
 
         def do_GET(self):
             print('GOT REQ', file=sys.stderr)
+            response = "console.log('here');"
             self.send_response(200)
             #self.send_header('Cache-Control', 'Cache-Control: no-cache, no-store, must-revalidate max-age=0')
             self.send_header('Cache-Control', 'max-age=3000')
-            self.send_header('Content-Length', 20)
+            self.send_header('Content-Length', len(response))
             self.end_headers()
-            self.wfile.write("console.log('here');")
+            self.wfile.write(response.encode('utf-8'))
 
         def log_message(self, format, *args):
             return
