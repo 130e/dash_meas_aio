@@ -6,13 +6,20 @@ Scripts for running ABR streaming tests between mobile device and remote video s
 
 Require android device.
 
-1. Install Termux. All future client side command are executed inside termux.
-1. Install dependency in Ter  
-
+- Install Termux. All client side commands are executed inside termux shell
+- Install dependency in Termux and set up repo
 ```sh
+# Allow termux to access download folder
+termux-setup-storage
+# NOTE: better restart Termux
+pkg update
+pkg upgrade
+# NOTE: unsure if pip prepackaged
 pip install selenium, numpy
-
-$ python run_video.py {abr} {run_time} {repeat time}
+```
+- Run experiment
+```sh
+python run_video.py {abr} {}
 ```
 
 ## Acknowledgement

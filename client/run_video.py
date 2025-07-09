@@ -14,6 +14,11 @@ from selenium.webdriver.chrome.options import Options
 import socket
 
 # Run in termux shell
+PYTHON_PATH = "/data/data/com.termux/files/usr/bin/python"
+ABR_PORT = 8333
+SERVER_IP = ""
+SERVER_PORT = 5201
+
 
 def setup_chrome_options(protocol):
     """Setup Chrome options based on transport protocol"""
@@ -26,106 +31,143 @@ def setup_chrome_options(protocol):
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--headless")
     chrome_options.add_argument("--enable-logging")
-    
+
     # Allow autoplay in headless mode
     chrome_options.add_argument("--autoplay-policy=no-user-gesture-required")
     chrome_options.add_argument("--disable-features=VizDisplayCompositor")
     chrome_options.add_argument("--disable-background-timer-throttling")
     chrome_options.add_argument("--disable-backgrounding-occluded-windows")
     chrome_options.add_argument("--disable-renderer-backgrounding")
-    
+
     # Set preferences to allow autoplay
-    chrome_options.add_experimental_option("prefs", {
-        "profile.default_content_setting_values.media_stream_mic": 1,
-        "profile.default_content_setting_values.media_stream_camera": 1,
-        "profile.default_content_setting_values.geolocation": 1,
-        "profile.default_content_settings.popups": 0,
-        "profile.managed_default_content_settings.images": 2,
-        "profile.default_content_setting_values.notifications": 2,
-        "profile.default_content_setting_values.media_stream": 2,
-        "profile.default_content_setting_values.plugins": 1,
-        "profile.default_content_setting_values.popups": 2,
-        "profile.default_content_setting_values.geolocation": 2,
-        "profile.default_content_setting_values.automatic_downloads": 1,
-        "profile.default_content_setting_values.mixed_script": 1,
-        "profile.default_content_setting_values.media_stream_mic": 2,
-        "profile.default_content_setting_values.media_stream_camera": 2,
-        "profile.default_content_setting_values.protocol_handlers": 2,
-        "profile.default_content_setting_values.midi_sysex": 2,
-        "profile.default_content_setting_values.push_messaging": 2,
-        "profile.default_content_setting_values.ssl_cert_decisions": 2,
-        "profile.default_content_setting_values.metro_switch_to_desktop": 2,
-        "profile.default_content_setting_values.protected_media_identifier": 2,
-        "profile.default_content_setting_values.app_banner": 2,
-        "profile.default_content_setting_values.site_engagement": 2,
-        "profile.default_content_setting_values.durable_storage": 2
-    })
+    chrome_options.add_experimental_option(
+        "prefs",
+        {
+            "profile.default_content_setting_values.media_stream_mic": 1,
+            "profile.default_content_setting_values.media_stream_camera": 1,
+            "profile.default_content_setting_values.geolocation": 1,
+            "profile.default_content_settings.popups": 0,
+            "profile.managed_default_content_settings.images": 2,
+            "profile.default_content_setting_values.notifications": 2,
+            "profile.default_content_setting_values.media_stream": 2,
+            "profile.default_content_setting_values.plugins": 1,
+            "profile.default_content_setting_values.popups": 2,
+            "profile.default_content_setting_values.geolocation": 2,
+            "profile.default_content_setting_values.automatic_downloads": 1,
+            "profile.default_content_setting_values.mixed_script": 1,
+            "profile.default_content_setting_values.media_stream_mic": 2,
+            "profile.default_content_setting_values.media_stream_camera": 2,
+            "profile.default_content_setting_values.protocol_handlers": 2,
+            "profile.default_content_setting_values.midi_sysex": 2,
+            "profile.default_content_setting_values.push_messaging": 2,
+            "profile.default_content_setting_values.ssl_cert_decisions": 2,
+            "profile.default_content_setting_values.metro_switch_to_desktop": 2,
+            "profile.default_content_setting_values.protected_media_identifier": 2,
+            "profile.default_content_setting_values.app_banner": 2,
+            "profile.default_content_setting_values.site_engagement": 2,
+            "profile.default_content_setting_values.durable_storage": 2,
+        },
+    )
 
     return chrome_options
 
+
 def main():
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Watch and save video with specified transport protocol')
-    # parser.add_argument('protocol', choices=['tcp', 'quic'], 
-    #                    help='Transport protocol to use (tcp or quic)')
+    parser = argparse.ArgumentParser(description="Run video with ABR algorithm")
+    parser.add_argument(
+        "-a",
+        "--abr",
+        choices=["bola", "fastMPC"],
+        default="bola",
+        help="ABR algorithm to use (bola, fastmpc)",
+    )
+    parser.add_argument(
+        "-t",
+        "--transport_protocol",
+        choices=["tcp", "quic"],
+        default="tcp",
+        help="Transport protocol to use (tcp or quic)",
+    )
+    parser.add_argument(
+        "-s",
+        "--server_ip",
+        default="45.76.170.255",
+        help="Server IP address",
+    )
+    parser.add_argument("exp_id", help="Experiment ID (any arbitrary string)")
     args = parser.parse_args()
 
-    # NOTE: testing
-    args.protocol = "tcp"
-    run_time = 200 # seconds
-    
+    # TODO: test quic
+    args.algo = "fastMPC"
+    args.transport_protocol = "tcp"
+    args.exp_id = "0"
+
+    # NOTE: Set to video length
+    run_time = 120
+
     # Setup ABR algorithm server
-    abr_algo = "fastMPC"
-    exp_id = "0"
-    command = 'exec /data/data/com.termux/files/usr/bin/python ./rl_server/mpc_server.py ' + exp_id
+    if args.algo == "fastMPC":
+        command = "exec " + PYTHON_PATH + " ./rl_server/mpc_server.py " + args.exp_id
+    elif args.algo == "bola":
+        command = "exec " + PYTHON_PATH + " ./rl_server/bola_server.py " + args.exp_id
+    else:
+        raise ValueError(f"Invalid algorithm: {args.algo}")
+
     print(f"Starting MPC server with command: {command}")
-    proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, bufsize=1, universal_newlines=True)
+    proc = subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        shell=True,
+        bufsize=1,
+        universal_newlines=True,
+    )
     sleep(2)
 
-    # Check if the process is still running
+    # ABR server check
     if proc.poll() is None:
-        print("MPC server started successfully")
-        
-        # Verify the server is listening on port 8333
+        print("ABR server started successfully")
+
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(2)
-            result = sock.connect_ex(('localhost', 8333))
+            result = sock.connect_ex(("localhost", ABR_PORT))
             sock.close()
             if result == 0:
-                print("MPC server is listening on port 8333")
+                print(f"ABR server listening on port {ABR_PORT}")
             else:
-                print("WARNING: MPC server is not listening on port 8333")
+                print(f"WARNING: server is not listening on port {ABR_PORT}")
         except Exception as e:
-            print(f"Error checking port 8333: {e}")
+            print(f"Error checking port {ABR_PORT}: {e}")
     else:
-        # Process has terminated, get the output
         stdout, stderr = proc.communicate()
-        print(f"MPC server failed to start!")
+        print(f"ABR server failed to start!")
         print(f"STDOUT: {stdout}")
         print(f"STDERR: {stderr}")
-        print("Exiting...")
         exit(1)
 
-    # Setup Chrome options based on protocol
-    chrome_options = setup_chrome_options(args.protocol)
-    
-    # Setup Chrome driver
+    # selenium setup
+    chrome_options = setup_chrome_options(args.transport_protocol)
     # service = Service("/opt/homebrew/bin/chromedriver")
     service = Service("/data/data/com.termux/files/usr/bin/chromedriver")
     driver = webdriver.Chrome(service=service, options=chrome_options)
     driver.set_script_timeout(180)  # up to 3 minutes for async JS
-    
+
     # Get target URL based on protocol
-    # NOTE: testing
     # target_url = get_target_url(args.protocol)
     # target_url = "http://45.76.170.255:5201/index.html"
-    target_url = "http://45.76.170.255:5201/myindex_fastMPC.html"
-    
+    if args.transport_protocol == "tcp":
+        target_url = f"http://{SERVER_IP}:{SERVER_PORT}/myindex_fastMPC.html"
+    elif args.transport_protocol == "quic":
+        target_url = f"http://{SERVER_IP}:{SERVER_PORT}/myindex_quic.html"
+    else:
+        raise ValueError(f"Invalid transport protocol: {args.transport_protocol}")
+
     # Navigate & load page
     driver.set_page_load_timeout(10)
     driver.get(target_url)
-    
+
     # Add JavaScript debugging to see what's happening with dash.js
     debug_script = """
     // Override console.log to capture all logs
@@ -190,20 +232,21 @@ def main():
     
     console.log('Dash.js debugging enabled');
     """
-    
+
     driver.execute_script(debug_script)
-    
+
     # Wait a bit for the page to load and dash.js to initialize
     sleep(5)
-    
+
     # Check dash.js logs
     logs = driver.execute_script("return window.dashDebugLogs || [];")
     print("Dash.js logs:")
     for log in logs:
         print(f"  {log}")
-    
+
     # Check if dash.js player is initialized
-    player_status = driver.execute_script("""
+    player_status = driver.execute_script(
+        """
         try {
             if (window.dashjs && window.dashjs.MediaPlayer) {
                 // In dash.js 2.3.0, we need to get the player differently
@@ -234,11 +277,13 @@ def main():
         } catch (e) {
             return { error: 'JavaScript error: ' + e.message };
         }
-    """)
+    """
+    )
     print(f"Player status: {player_status}")
-    
+
     # Also check the video element directly
-    video_status = driver.execute_script("""
+    video_status = driver.execute_script(
+        """
         var video = document.getElementById('videoPlayer');
         if (video) {
             return {
@@ -254,12 +299,14 @@ def main():
             };
         }
         return { error: 'video element not found' };
-    """)
+    """
+    )
     print(f"Video element status: {video_status}")
-    
+
     # Start video playback programmatically to bypass autoplay restrictions
     print("Starting video playback...")
-    start_result = driver.execute_script("""
+    start_result = driver.execute_script(
+        """
         try {
             var video = document.getElementById('videoPlayer');
             if (video) {
@@ -288,14 +335,16 @@ def main():
         } catch (e) {
             return { error: 'Failed to start video: ' + e.message };
         }
-    """)
+    """
+    )
     print(f"Video start result: {start_result}")
-    
+
     # Wait a bit for the video to start and try again if needed
     sleep(3)
-    
+
     # Check if video is actually playing
-    playback_status = driver.execute_script("""
+    playback_status = driver.execute_script(
+        """
         var video = document.getElementById('videoPlayer');
         if (video) {
             return {
@@ -306,13 +355,15 @@ def main():
             };
         }
         return { error: 'Video element not found' };
-    """)
+    """
+    )
     print(f"Playback status after start: {playback_status}")
-    
+
     # If still paused, try one more time
-    if playback_status.get('paused', True):
+    if playback_status.get("paused", True):
         print("Video still paused, trying again...")
-        driver.execute_script("""
+        driver.execute_script(
+            """
             var video = document.getElementById('videoPlayer');
             if (video) {
                 video.muted = true;
@@ -321,26 +372,28 @@ def main():
                     console.log('Final play attempt failed:', e);
                 });
             }
-        """)
+        """
+        )
         sleep(2)
-    
+
     # Monitor the video playback and ABR decisions during the test
     print("Starting video playback monitoring...")
     for i in range(0, run_time, 10):  # Check every 10 seconds
         sleep(10)
-        
+
         # Get current logs
         current_logs = driver.execute_script("return window.dashDebugLogs || [];")
-        new_logs = current_logs[len(logs):]  # Get only new logs
+        new_logs = current_logs[len(logs) :]  # Get only new logs
         logs = current_logs
-        
+
         if new_logs:
             print(f"New logs at {i+10}s:")
             for log in new_logs:
                 print(f"  {log}")
-        
+
         # Check player status
-        current_status = driver.execute_script("""
+        current_status = driver.execute_script(
+            """
             try {
                 if (window.dashjs && window.dashjs.MediaPlayer) {
                     // In dash.js 2.3.0, we need to get the player differently
@@ -371,14 +424,15 @@ def main():
             } catch (e) {
                 return { error: 'JavaScript error: ' + e.message };
             }
-        """)
+        """
+        )
         print(f"Status at {i+10}s: {current_status}")
-        
+
         # Check if video is stuck
-        if current_status.get('isPlaying') == False and i > 30:
+        if current_status.get("isPlaying") == False and i > 30:
             print("WARNING: Video appears to be stuck!")
             break
-    
+
     # Cleanup
     print("quitting webdriver")
     driver.quit()
@@ -387,6 +441,7 @@ def main():
     print("terminating abr server")
     proc.terminate()
     proc.wait()
+
 
 if __name__ == "__main__":
     main()
