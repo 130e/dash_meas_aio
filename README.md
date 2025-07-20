@@ -2,6 +2,13 @@
 
 Scripts for running ABR streaming tests between mobile device and remote video server.
 
+**TODOs:**
+
+- [ ] Check tcpdump function
+- [ ] Check BBB movie streaming
+- [ ] Check cellninja log
+- [ ] Parsers
+
 ## Client
 
 Require android device as UE.

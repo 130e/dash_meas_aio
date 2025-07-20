@@ -1,2 +1,3 @@
-video_server
+reference/
+**/captures/
 __pycache__
