@@ -17,6 +17,7 @@ import atexit
 
 # Run in termux shell
 PYTHON_PATH = "/data/data/com.termux/files/usr/bin/python"
+CHROMEDRIVER_PATH = "/data/data/com.termux/files/usr/bin/chromedriver"
 ABR_PORT = 8333
 VIDEO_SERVER_PORT = 5202
 
@@ -38,58 +39,58 @@ def load_js_file(filename):
 def start_tcpdump(interface="any", port=None, output_file=None, exp_id="0"):
     """
     Start tcpdump to capture network traffic.
-    
+
     Args:
         interface (str): Network interface to capture (default: "any")
         port (int): Specific port to filter (optional)
         output_file (str): Output file path (optional)
         exp_id (str): Experiment ID for naming files
-    
+
     Returns:
         subprocess.Popen: tcpdump process object
     """
     global tcpdump_process
-    
+
     # Create output directory if it doesn't exist
     output_dir = f"captures/exp_{exp_id}"
     os.makedirs(output_dir, exist_ok=True)
-    
+
     # Generate output filename if not provided
     if output_file is None:
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         output_file = f"{output_dir}/tcpdump_{timestamp}.pcap"
-    
+
     # Build tcpdump command
     cmd = ["tcpdump"]
-    
+
     # Interface
     cmd.extend(["-i", interface])
-    
+
     # Port filter
     if port:
         cmd.extend(["port", str(port)])
-    
+
     # Truncate packets to 96 bytes
     cmd.extend(["-s", "96"])
-    
+
     # Output file
     cmd.extend(["-w", output_file])
-    
+
     # File size rollover
     cmd.extend(["-C", "1000"])
-    
+
     try:
         print(f"Starting tcpdump with command: {' '.join(cmd)}")
         tcpdump_process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            preexec_fn=os.setsid  # Create new process group
+            preexec_fn=os.setsid,  # Create new process group
         )
-        
+
         # Wait a moment to ensure tcpdump starts
         sleep(1)
-        
+
         if tcpdump_process.poll() is None:
             print(f"tcpdump started successfully, capturing to: {output_file}")
             return tcpdump_process, output_file
@@ -99,7 +100,7 @@ def start_tcpdump(interface="any", port=None, output_file=None, exp_id="0"):
             print(f"STDOUT: {stdout}")
             print(f"STDERR: {stderr}")
             return None, None
-            
+
     except Exception as e:
         print(f"Error starting tcpdump: {e}")
         return None, None
@@ -108,12 +109,12 @@ def start_tcpdump(interface="any", port=None, output_file=None, exp_id="0"):
 def stop_tcpdump():
     """Stop the tcpdump process gracefully."""
     global tcpdump_process
-    
+
     if tcpdump_process and tcpdump_process.poll() is None:
         try:
             # Send SIGTERM to the process group
             os.killpg(os.getpgid(tcpdump_process.pid), signal.SIGTERM)
-            
+
             # Wait for graceful termination
             try:
                 tcpdump_process.wait(timeout=5)
@@ -122,7 +123,7 @@ def stop_tcpdump():
                 # Force kill if it doesn't stop gracefully
                 os.killpg(os.getpgid(tcpdump_process.pid), signal.SIGKILL)
                 print("tcpdump force killed")
-                
+
         except Exception as e:
             print(f"Error stopping tcpdump: {e}")
             # Try to terminate the process directly
@@ -152,51 +153,56 @@ def setup_chrome_options(protocol):
     chrome_options.add_argument("--allow-running-insecure-content")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--enable-logging")
+    # chrome_options.add_argument("--enable-logging")
 
     # Allow autoplay in headless mode
-    chrome_options.add_argument("--autoplay-policy=no-user-gesture-required")
-    chrome_options.add_argument("--disable-features=VizDisplayCompositor")
-    chrome_options.add_argument("--disable-background-timer-throttling")
-    chrome_options.add_argument("--disable-backgrounding-occluded-windows")
-    chrome_options.add_argument("--disable-renderer-backgrounding")
+    # chrome_options.add_argument("--autoplay-policy=no-user-gesture-required")
+    # chrome_options.add_argument("--disable-features=VizDisplayCompositor")
+    # chrome_options.add_argument("--disable-background-timer-throttling")
+    # chrome_options.add_argument("--disable-backgrounding-occluded-windows")
+    # chrome_options.add_argument("--disable-renderer-backgrounding")
 
     # Set preferences to allow autoplay
-    chrome_options.add_experimental_option(
-        "prefs",
-        {
-            "profile.default_content_setting_values.media_stream_mic": 1,
-            "profile.default_content_setting_values.media_stream_camera": 1,
-            "profile.default_content_setting_values.geolocation": 1,
-            "profile.default_content_settings.popups": 0,
-            "profile.managed_default_content_settings.images": 2,
-            "profile.default_content_setting_values.notifications": 2,
-            "profile.default_content_setting_values.media_stream": 2,
-            "profile.default_content_setting_values.plugins": 1,
-            "profile.default_content_setting_values.popups": 2,
-            "profile.default_content_setting_values.geolocation": 2,
-            "profile.default_content_setting_values.automatic_downloads": 1,
-            "profile.default_content_setting_values.mixed_script": 1,
-            "profile.default_content_setting_values.media_stream_mic": 2,
-            "profile.default_content_setting_values.media_stream_camera": 2,
-            "profile.default_content_setting_values.protocol_handlers": 2,
-            "profile.default_content_setting_values.midi_sysex": 2,
-            "profile.default_content_setting_values.push_messaging": 2,
-            "profile.default_content_setting_values.ssl_cert_decisions": 2,
-            "profile.default_content_setting_values.metro_switch_to_desktop": 2,
-            "profile.default_content_setting_values.protected_media_identifier": 2,
-            "profile.default_content_setting_values.app_banner": 2,
-            "profile.default_content_setting_values.site_engagement": 2,
-            "profile.default_content_setting_values.durable_storage": 2,
-        },
-    )
+    # chrome_options.add_experimental_option(
+    #     "prefs",
+    #     {
+    #         "profile.default_content_setting_values.media_stream_mic": 1,
+    #         "profile.default_content_setting_values.media_stream_camera": 1,
+    #         "profile.default_content_setting_values.geolocation": 1,
+    #         "profile.default_content_settings.popups": 0,
+    #         "profile.managed_default_content_settings.images": 2,
+    #         "profile.default_content_setting_values.notifications": 2,
+    #         "profile.default_content_setting_values.media_stream": 2,
+    #         "profile.default_content_setting_values.plugins": 1,
+    #         "profile.default_content_setting_values.popups": 2,
+    #         "profile.default_content_setting_values.geolocation": 2,
+    #         "profile.default_content_setting_values.automatic_downloads": 1,
+    #         "profile.default_content_setting_values.mixed_script": 1,
+    #         "profile.default_content_setting_values.media_stream_mic": 2,
+    #         "profile.default_content_setting_values.media_stream_camera": 2,
+    #         "profile.default_content_setting_values.protocol_handlers": 2,
+    #         "profile.default_content_setting_values.midi_sysex": 2,
+    #         "profile.default_content_setting_values.push_messaging": 2,
+    #         "profile.default_content_setting_values.ssl_cert_decisions": 2,
+    #         "profile.default_content_setting_values.metro_switch_to_desktop": 2,
+    #         "profile.default_content_setting_values.protected_media_identifier": 2,
+    #         "profile.default_content_setting_values.app_banner": 2,
+    #         "profile.default_content_setting_values.site_engagement": 2,
+    #         "profile.default_content_setting_values.durable_storage": 2,
+    #     },
+    # )
 
     return chrome_options
 
 
 def main():
-    # Parse command line arguments
     parser = argparse.ArgumentParser(description="Run video with ABR algorithm")
+    parser.add_argument(
+        "-i",
+        "--exp_id",
+        default="0",
+        help="Experiment ID (any arbitrary string)",
+    )
     parser.add_argument(
         "-a",
         "--abr",
@@ -223,6 +229,8 @@ def main():
         default=VIDEO_SERVER_PORT,
         help="Server port",
     )
+
+    # tcpdump
     parser.add_argument(
         "-d",
         "--tcpdump",
@@ -240,7 +248,7 @@ def main():
         default=None,
         help="Specific port to capture with tcpdump (optional)",
     )
-    parser.add_argument("exp_id", help="Experiment ID (any arbitrary string)")
+
     args = parser.parse_args()
 
     # TODO: Set to video length
@@ -248,14 +256,15 @@ def main():
 
     # Setup ABR algorithm server
     # ================================================
-    if args.algo == "fastMPC":
+    abr = args.abr.lower()
+    if abr == "fastmpc":
         command = "exec " + PYTHON_PATH + " ./abr_server/mpc_server.py " + args.exp_id
-    elif args.algo == "bola":
+    elif abr == "bola":
         command = (
             "exec " + PYTHON_PATH + " ./abr_server/simple_server.py " + args.exp_id
         )
     else:
-        raise ValueError(f"Invalid algorithm: {args.algo}")
+        raise ValueError(f"Invalid algorithm: {args.abr}")
 
     print(f"Starting ABR server with command: {command}")
     proc = subprocess.Popen(
@@ -294,15 +303,13 @@ def main():
     # ================================================
     tcpdump_process = None
     tcpdump_output = None
-    
+
     if args.tcpdump:
         print("Starting tcpdump capture...")
         tcpdump_process, tcpdump_output = start_tcpdump(
-            interface=args.tcpdump_interface,
-            port=args.tcpdump_port,
-            exp_id=args.exp_id
+            interface=args.tcpdump_interface, port=args.tcpdump_port, exp_id=args.exp_id
         )
-        
+
         if tcpdump_process is None:
             print("WARNING: tcpdump failed to start, continuing without capture")
         else:
@@ -311,8 +318,7 @@ def main():
     # Selenium setup
     # ================================================
     chrome_options = setup_chrome_options(args.transport_protocol)
-    # service = Service("/opt/homebrew/bin/chromedriver") # macos
-    service = Service("/data/data/com.termux/files/usr/bin/chromedriver")  # termux
+    service = Service(CHROMEDRIVER_PATH)
     driver = webdriver.Chrome(service=service, options=chrome_options)
     driver.set_script_timeout(180)  # up to 3 minutes for async JS
 
@@ -346,11 +352,11 @@ def main():
 
     # Configure player based on ABR algorithm
     # ================================================
-    if args.algo == "fastMPC":
+    if abr == "fastmpc":
         player_config = {
             "abrAlgorithm": 4,  # MPC
         }
-    elif args.algo == "bola":
+    elif abr == "bola":
         player_config = {
             "abrAlgorithm": 6,  # BOLA
         }
