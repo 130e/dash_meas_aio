@@ -16,8 +16,16 @@ import signal
 import atexit
 
 # Run in termux shell
-PYTHON_PATH = "/data/data/com.termux/files/usr/bin/python"
-CHROMEDRIVER_PATH = "/data/data/com.termux/files/usr/bin/chromedriver"
+BIN_DIR = "/data/data/com.termux/files/usr/bin"
+PYTHON_PATH = BIN_DIR + "/python"
+CHROMEDRIVER_PATH = BIN_DIR + "/chromedriver"
+
+DEBUG_SCRIPT_PATH = "js/debug.js"
+PLAYER_SETUP_SCRIPT_PATH = "js/dash_player_setup.js"
+PLAYER_STATUS_SCRIPT_PATH = "js/player_status.js"
+PLAYBACK_CONTROL_SCRIPT_PATH = "js/playback_control.js"
+VIDEO_STATUS_SCRIPT_PATH = "js/video_status.js"
+
 ABR_PORT = 8333
 VIDEO_SERVER_PORT = 5202
 
@@ -27,10 +35,10 @@ tcpdump_process = None
 
 def load_js_file(filename):
     # Load a JavaScript file from the js directory and return its contents as a string.
-    js_dir = os.path.join(os.path.dirname(__file__), "js")
-    file_path = os.path.join(js_dir, filename)
+    # js_dir = os.path.join(os.path.dirname(__file__), "js")
+    # file_path = os.path.join(js_dir, filename)
     try:
-        with open(file_path, "r") as f:
+        with open(filename, "r") as f:
             return f.read()
     except Exception as e:
         raise Exception(f"Error loading JavaScript file {filename}: {e}")
@@ -257,15 +265,7 @@ def main():
     # Setup ABR algorithm server
     # ================================================
     abr = args.abr.lower()
-    if abr == "fastmpc":
-        command = "exec " + PYTHON_PATH + " ./abr_server/mpc_server.py " + args.exp_id
-    elif abr == "bola":
-        command = (
-            "exec " + PYTHON_PATH + " ./abr_server/simple_server.py " + args.exp_id
-        )
-    else:
-        raise ValueError(f"Invalid algorithm: {args.abr}")
-
+    command = f"exec {PYTHON_PATH} ./abr_server/{abr}_server.py {abr} {args.exp_id}"
     print(f"Starting ABR server with command: {command}")
     proc = subprocess.Popen(
         command,
@@ -337,11 +337,11 @@ def main():
     driver.get(target_url)
 
     # Load JavaScript debugging script
-    debug_script = load_js_file("debug.js")
+    debug_script = load_js_file(DEBUG_SCRIPT_PATH)
     driver.execute_script(debug_script)
 
     # Load dash.js player setup script
-    player_setup_script = load_js_file("dash_player_setup.js")
+    player_setup_script = load_js_file(PLAYER_SETUP_SCRIPT_PATH)
     driver.execute_script(player_setup_script)
 
     # Wait a bit for the page to load and dash.js to initialize
@@ -381,18 +381,18 @@ def main():
         print(f"  {log}")
 
     # Check if dash.js player is initialized
-    player_status = driver.execute_script(load_js_file("player_status.js"))
+    player_status = driver.execute_script(load_js_file(PLAYER_STATUS_SCRIPT_PATH))
     print(f"Player status: {player_status}")
 
     # Also check the video element directly
-    video_status = driver.execute_script(load_js_file("video_status.js"))
+    video_status = driver.execute_script(load_js_file(VIDEO_STATUS_SCRIPT_PATH))
     print(f"Video element status: {video_status}")
 
     # Start video playback
     # ================================================
 
     # Load playback control script
-    driver.execute_script(load_js_file("playback_control.js"))
+    driver.execute_script(load_js_file(PLAYBACK_CONTROL_SCRIPT_PATH))
 
     # Start video playback programmatically to bypass autoplay restrictions
     print("Starting video playback...")

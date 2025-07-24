@@ -1,5 +1,6 @@
 // Debug script for dash.js monitoring
-// This script sets up comprehensive logging and monitoring for video streaming tests
+// This script overrides console.log and save to variable
+// Allow python script to access the logs
 
 // Override console.log to capture all logs
 var originalLog = console.log;
@@ -10,7 +11,7 @@ console.log = function() {
     window.dashDebugLogs.push(Array.prototype.slice.call(arguments).join(' '));
 };
 
-// Monitor network requests to port 8333
+// Monitor network requests
 var originalFetch = window.fetch;
 window.fetch = function(url, options) {
     console.log('FETCH REQUEST:', url, options);
@@ -23,7 +24,7 @@ window.fetch = function(url, options) {
     });
 };
 
-// Monitor XMLHttpRequest to port 8333
+// Monitor XMLHttpRequest
 var originalXHROpen = XMLHttpRequest.prototype.open;
 XMLHttpRequest.prototype.open = function(method, url, async, user, password) {
     console.log('XHR REQUEST:', method, url);

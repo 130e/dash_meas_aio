@@ -5,6 +5,7 @@ Scripts for running ABR streaming tests between mobile device and remote video s
 **TODOs:**
 
 - [ ] Check tcpdump function
+- [ ] Check metrics
 - [ ] Check BBB movie streaming
 - [ ] Server side ss monitoring script
 - [ ] QUIC logging
