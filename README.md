@@ -6,11 +6,13 @@ Scripts for running ABR streaming tests between mobile device and remote video s
 
 - [ ] Check tcpdump function
 - [ ] Check BBB movie streaming
+- [ ] Server side ss monitoring script
+- [ ] QUIC logging
 - [ ] Check cellninja log
 - [ ] Parsers
 - [ ] HTTP multiplexing?
 - [ ] For QUIC, we need to modify implementation to capture packets.
-- [ ] SSH or temux?
+- [ ] ADB or temux?
 
 ## Client
 

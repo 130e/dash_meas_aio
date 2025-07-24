@@ -156,41 +156,41 @@ def setup_chrome_options(protocol):
     # chrome_options.add_argument("--enable-logging")
 
     # Allow autoplay in headless mode
-    # chrome_options.add_argument("--autoplay-policy=no-user-gesture-required")
-    # chrome_options.add_argument("--disable-features=VizDisplayCompositor")
-    # chrome_options.add_argument("--disable-background-timer-throttling")
-    # chrome_options.add_argument("--disable-backgrounding-occluded-windows")
-    # chrome_options.add_argument("--disable-renderer-backgrounding")
+    chrome_options.add_argument("--autoplay-policy=no-user-gesture-required")
+    chrome_options.add_argument("--disable-features=VizDisplayCompositor")
+    chrome_options.add_argument("--disable-background-timer-throttling")
+    chrome_options.add_argument("--disable-backgrounding-occluded-windows")
+    chrome_options.add_argument("--disable-renderer-backgrounding")
 
     # Set preferences to allow autoplay
-    # chrome_options.add_experimental_option(
-    #     "prefs",
-    #     {
-    #         "profile.default_content_setting_values.media_stream_mic": 1,
-    #         "profile.default_content_setting_values.media_stream_camera": 1,
-    #         "profile.default_content_setting_values.geolocation": 1,
-    #         "profile.default_content_settings.popups": 0,
-    #         "profile.managed_default_content_settings.images": 2,
-    #         "profile.default_content_setting_values.notifications": 2,
-    #         "profile.default_content_setting_values.media_stream": 2,
-    #         "profile.default_content_setting_values.plugins": 1,
-    #         "profile.default_content_setting_values.popups": 2,
-    #         "profile.default_content_setting_values.geolocation": 2,
-    #         "profile.default_content_setting_values.automatic_downloads": 1,
-    #         "profile.default_content_setting_values.mixed_script": 1,
-    #         "profile.default_content_setting_values.media_stream_mic": 2,
-    #         "profile.default_content_setting_values.media_stream_camera": 2,
-    #         "profile.default_content_setting_values.protocol_handlers": 2,
-    #         "profile.default_content_setting_values.midi_sysex": 2,
-    #         "profile.default_content_setting_values.push_messaging": 2,
-    #         "profile.default_content_setting_values.ssl_cert_decisions": 2,
-    #         "profile.default_content_setting_values.metro_switch_to_desktop": 2,
-    #         "profile.default_content_setting_values.protected_media_identifier": 2,
-    #         "profile.default_content_setting_values.app_banner": 2,
-    #         "profile.default_content_setting_values.site_engagement": 2,
-    #         "profile.default_content_setting_values.durable_storage": 2,
-    #     },
-    # )
+    chrome_options.add_experimental_option(
+        "prefs",
+        {
+            "profile.default_content_setting_values.media_stream_mic": 1,
+            "profile.default_content_setting_values.media_stream_camera": 1,
+            "profile.default_content_setting_values.geolocation": 1,
+            "profile.default_content_settings.popups": 0,
+            "profile.managed_default_content_settings.images": 2,
+            "profile.default_content_setting_values.notifications": 2,
+            "profile.default_content_setting_values.media_stream": 2,
+            "profile.default_content_setting_values.plugins": 1,
+            "profile.default_content_setting_values.popups": 2,
+            "profile.default_content_setting_values.geolocation": 2,
+            "profile.default_content_setting_values.automatic_downloads": 1,
+            "profile.default_content_setting_values.mixed_script": 1,
+            "profile.default_content_setting_values.media_stream_mic": 2,
+            "profile.default_content_setting_values.media_stream_camera": 2,
+            "profile.default_content_setting_values.protocol_handlers": 2,
+            "profile.default_content_setting_values.midi_sysex": 2,
+            "profile.default_content_setting_values.push_messaging": 2,
+            "profile.default_content_setting_values.ssl_cert_decisions": 2,
+            "profile.default_content_setting_values.metro_switch_to_desktop": 2,
+            "profile.default_content_setting_values.protected_media_identifier": 2,
+            "profile.default_content_setting_values.app_banner": 2,
+            "profile.default_content_setting_values.site_engagement": 2,
+            "profile.default_content_setting_values.durable_storage": 2,
+        },
+    )
 
     return chrome_options
 
@@ -234,7 +234,7 @@ def main():
     parser.add_argument(
         "-d",
         "--tcpdump",
-        action="store_false",
+        action="store_true",
         help="Enable tcpdump capture",
     )
     parser.add_argument(
@@ -251,8 +251,8 @@ def main():
 
     args = parser.parse_args()
 
-    # TODO: Set to video length
-    run_time = 120
+    # pensieve video 193s
+    run_time = 200
 
     # Setup ABR algorithm server
     # ================================================
@@ -421,14 +421,14 @@ def main():
             for log in new_logs:
                 print(f"  {log}")
 
+        # FIXME: Bug returning None
         # Check player status
-        current_status = driver.execute_script(load_js_file("player_status.js"))
-        print(f"Status at {i+10}s: {current_status}")
-
+        # current_status = driver.execute_script(load_js_file("player_status.js"))
+        # print(f"Status at {i+10}s: {current_status}")
         # Check if video is stuck
-        if current_status.get("isPlaying") == False and i > 30:
-            print("WARNING: Video appears to be stuck!")
-            break
+        # if current_status.get("isPlaying") == False and i > 30:
+        #     print("WARNING: Video appears to be stuck!")
+        #     break
 
     # Cleanup
     print("quitting webdriver")
