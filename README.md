@@ -63,6 +63,18 @@ python client_run.py -a bola -t tcp -s {SERVER_IP} -p {SERVER_PORT} {EXPERIMENT_
 # -d with tcpdump
 ```
 
+### Logging
+
+ABR server scripts log following metrics in `results` folder. 
+
+- The Unix timestamp (seconds since epoch) when the log entry was recorded
+- The bitrate (in Kbps) selected for the video chunk
+- The size of the playback buffer (in seconds) after downloading the chunk
+- The amount of time (in seconds) spent rebuffering (i.e., playback stalled) for this chunk
+- The size (in bytes) of the video chunk that was just downloaded
+- The time (in seconds) it took to download the video chunk
+- The reward value calculated by the ABR algorithm for this chunk
+
 ## Server
 
 Ideally, we can simply keep the video server and tcpdump running. We can always filter packets later.

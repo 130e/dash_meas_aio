@@ -265,7 +265,7 @@ def main():
     # Setup ABR algorithm server
     # ================================================
     abr = args.abr.lower()
-    command = f"exec {PYTHON_PATH} ./abr_server/{abr}_server.py {abr} {args.exp_id}"
+    command = f"exec {PYTHON_PATH} ./abr_server/{abr}_server.py {args.exp_id}"
     print(f"Starting ABR server with command: {command}")
     proc = subprocess.Popen(
         command,
