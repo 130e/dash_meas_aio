@@ -14,9 +14,7 @@ import numpy as np
 import time
 import argparse
 
-from abr_common import *
-
-# in format of time_stamp bit_rate buffer_size rebuffer_time video_chunk_size download_time reward
+from abr_cfg import *
 
 
 def make_request_handler(input_dict):
@@ -60,15 +58,21 @@ def make_request_handler(input_dict):
                 video_chunk_size = post_data["lastChunkSize"]
 
                 # log wall_time, bit_rate, buffer_size, rebuffer_time, video_chunk_size, download_time, reward
-                self.csv_writer.writerow([
-                    time.time(),
-                    VIDEO_BIT_RATE[post_data["lastquality"]],
-                    post_data["buffer"],
-                    float(post_data["RebufferTime"] - self.input_dict["last_total_rebuf"]) / M_IN_K,
-                    video_chunk_size,
-                    video_chunk_fetch_time,
-                    reward,
-                ])
+                self.csv_writer.writerow(
+                    [
+                        time.time(),
+                        VIDEO_BIT_RATE[post_data["lastquality"]],
+                        post_data["buffer"],
+                        float(
+                            post_data["RebufferTime"]
+                            - self.input_dict["last_total_rebuf"]
+                        )
+                        / M_IN_K,
+                        video_chunk_size,
+                        video_chunk_fetch_time,
+                        reward,
+                    ]
+                )
                 self.log_file.flush()
 
                 self.input_dict["last_total_rebuf"] = post_data["RebufferTime"]
@@ -115,15 +119,17 @@ def run(server_class, port, log_file_path):
 
     with open(log_file_path, "w", newline="") as log_file:
         csv_writer = csv.writer(log_file)
-        csv_writer.writerow([
-            "wall_time",
-            "bit_rate",
-            "buffer_size",
-            "rebuffer_time",
-            "video_chunk_size",
-            "download_time",
-            "reward",
-        ])
+        csv_writer.writerow(
+            [
+                "wall_time",
+                "bit_rate",
+                "buffer_size",
+                "rebuffer_time",
+                "video_chunk_size",
+                "download_time",
+                "reward",
+            ]
+        )
 
         last_bit_rate = DEFAULT_QUALITY
         last_total_rebuf = 0

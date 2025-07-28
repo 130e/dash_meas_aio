@@ -17,20 +17,8 @@ import numpy as np
 import time
 import itertools
 
-from abr_common import *
+from abr_cfg import *
 
-######################## FAST MPC #######################
-
-S_INFO = 5  # bit_rate, buffer_size, rebuffering_time, bandwidth_measurement, chunk_til_video_end
-S_LEN = 8  # take how many frames in the past
-MPC_FUTURE_CHUNK_COUNT = 5
-CHUNK_TIL_VIDEO_END_CAP = 48.0
-BUFFER_NORM_FACTOR = 10.0
-TRAIN_SEQ_LEN = 100  # take as a train batch
-MODEL_SAVE_INTERVAL = 100
-RANDOM_SEED = 42
-RAND_RANGE = 1000
-NN_MODEL = None
 
 CHUNK_COMBO_OPTIONS = []
 
@@ -144,15 +132,17 @@ def make_request_handler(input_dict):
                         state = np.array(self.s_batch[-1], copy=True)
 
                 # log wall_time, bit_rate, buffer_size, rebuffer_time, video_chunk_size, download_time, reward
-                self.csv_writer.writerow([
-                    time.time(),
-                    VIDEO_BIT_RATE[post_data["lastquality"]],
-                    post_data["buffer"],
-                    rebuffer_time / M_IN_K,
-                    video_chunk_size,
-                    video_chunk_fetch_time,
-                    reward,
-                ])
+                self.csv_writer.writerow(
+                    [
+                        time.time(),
+                        VIDEO_BIT_RATE[post_data["lastquality"]],
+                        post_data["buffer"],
+                        rebuffer_time / M_IN_K,
+                        video_chunk_size,
+                        video_chunk_fetch_time,
+                        reward,
+                    ]
+                )
                 self.log_file.flush()
 
                 # pick bitrate according to MPC
@@ -203,11 +193,13 @@ def make_request_handler(input_dict):
                             curr_buffer = 0
                         else:
                             curr_buffer -= download_time
-                        curr_buffer += 4
+                        curr_buffer += CHUNK_LENGTH
 
                         # linear reward
-                        # bitrate_sum += VIDEO_BIT_RATE[chunk_quality]
-                        # smoothness_diffs += abs(VIDEO_BIT_RATE[chunk_quality] - VIDEO_BIT_RATE[last_quality])
+                        bitrate_sum += VIDEO_BIT_RATE[chunk_quality]
+                        smoothness_diffs += abs(
+                            VIDEO_BIT_RATE[chunk_quality] - VIDEO_BIT_RATE[last_quality]
+                        )
 
                         # log reward
                         # log_bit_rate = np.log(VIDEO_BIT_RATE[chunk_quality] / float(VIDEO_BIT_RATE[0]))
@@ -216,23 +208,27 @@ def make_request_handler(input_dict):
                         # smoothness_diffs += abs(log_bit_rate - log_last_bit_rate)
 
                         # hd reward
-                        bitrate_sum += BITRATE_REWARD[chunk_quality]
-                        smoothness_diffs += abs(
-                            BITRATE_REWARD[chunk_quality] - BITRATE_REWARD[last_quality]
-                        )
+                        # bitrate_sum += BITRATE_REWARD[chunk_quality]
+                        # smoothness_diffs += abs(
+                        #     BITRATE_REWARD[chunk_quality] - BITRATE_REWARD[last_quality]
+                        # )
 
                         last_quality = chunk_quality
                     # compute reward for this combination (one reward per 5-chunk combo)
                     # bitrates are in Mbits/s, rebuffer in seconds, and smoothness_diffs in Mbits/s
 
                     # linear reward
-                    # reward = (bitrate_sum/1000.) - (4.3*curr_rebuffer_time) - (smoothness_diffs/1000.)
+                    reward = (
+                        (bitrate_sum / 1000.0)
+                        - (REBUF_PENALTY * curr_rebuffer_time)
+                        - (smoothness_diffs / 1000.0)
+                    )
 
                     # log reward
-                    # reward = (bitrate_sum) - (4.3*curr_rebuffer_time) - (smoothness_diffs)
+                    # reward = (bitrate_sum) - (REBUF_PENALTY*curr_rebuffer_time) - (smoothness_diffs)
 
                     # hd reward
-                    reward = bitrate_sum - (8 * curr_rebuffer_time) - (smoothness_diffs)
+                    # reward = bitrate_sum - (8 * curr_rebuffer_time) - (smoothness_diffs)
 
                     if reward > max_reward:
                         max_reward = reward
@@ -298,20 +294,23 @@ def run(server_class, port, log_file_path):
         os.makedirs(LOG_DIR)
 
     # make chunk combination options
-    for combo in itertools.product([0, 1, 2, 3, 4, 5], repeat=5):
+    num_qualities = len(VIDEO_BIT_RATE)
+    for combo in itertools.product(range(num_qualities), repeat=5):
         CHUNK_COMBO_OPTIONS.append(combo)
 
     with open(log_file_path, "w", newline="") as log_file:
         csv_writer = csv.writer(log_file)
-        csv_writer.writerow([
-            "wall_time",
-            "bit_rate",
-            "buffer_size",
-            "rebuffer_time",
-            "video_chunk_size",
-            "download_time",
-            "reward",
-        ])
+        csv_writer.writerow(
+            [
+                "wall_time",
+                "bit_rate",
+                "buffer_size",
+                "rebuffer_time",
+                "video_chunk_size",
+                "download_time",
+                "reward",
+            ]
+        )
 
         s_batch = [np.zeros((S_INFO, S_LEN))]
 

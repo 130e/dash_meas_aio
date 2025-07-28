@@ -1,4 +1,5 @@
 reference/
 video_server/videos/
 **/captures/
+**/results/
 __pycache__
