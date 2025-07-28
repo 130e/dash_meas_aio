@@ -4,14 +4,13 @@ Scripts for running ABR streaming tests between mobile device and remote video s
 
 **TODOs:**
 
-- [ ] Check tcpdump function
-- [ ] Server side ss monitoring script?
 - [ ] QUIC logging
-- [ ] Check cellninja log
 - [ ] Parsers
 - [ ] HTTP multiplexing?
 - [ ] For QUIC, we need to modify implementation to capture packets.
 - [ ] ADB or temux?
+- [ ] Fix occaision broken pipe bug when requesting chunks
+- [ ] Fix tcpdump function
 
 ## Client
 
@@ -55,10 +54,14 @@ python client_browser_test.py
 
 - Connect UE to PC and start cellular capturer(*)
 
+- Open another Termux tab and start tcpdump (might need to install sudo or use su)
+```sh
+sudo tcpdump -s 96 -w captures.pcap -C 1000
+```
+
 - Start experiment
 ```sh
-python client_run.py -a bola -t tcp -s {SERVER_IP} -p {SERVER_PORT} {EXPERIMENT_ID}
-# -d with tcpdump
+python client_run.py -a fastmpc -t tcp -s {SERVER_IP} -p {SERVER_PORT} {EXPERIMENT_ID}
 ```
 
 ### Logging
@@ -128,8 +131,13 @@ python3 -m http.server 5202 --bind 0.0.0.0
 
 ### Logging
 
+- Find UE IP in internet (e.g., use iperf3)
+
+- Start logging
+
 ```sh
-sudo tcpdump -i enp1s0 tcp -s 96 -C 1000 -w ~/pcap/tcp_capture_%Y-%m-%d_%H-%M-%S.pcap
+sudo tcpdump host {UE_IP} tcp -s 96 -C 1000 -w ~/pcap/tcp_capture_%Y-%m-%d_%H-%M-%S.pcap
+sudo ./tcp_ss_monitor.sh {UE_IP}
 ```
 
 

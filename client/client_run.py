@@ -238,28 +238,29 @@ def main():
         help="Server port",
     )
 
+    # FIXME: using sudo causes chromium to crash; su doesn't have termux path
     # tcpdump
-    parser.add_argument(
-        "-d",
-        "--tcpdump",
-        action="store_true",
-        help="Enable tcpdump capture",
-    )
-    parser.add_argument(
-        "--tcpdump_interface",
-        default="any",
-        help="Network interface for tcpdump (default: any)",
-    )
-    parser.add_argument(
-        "--tcpdump_port",
-        type=int,
-        default=None,
-        help="Specific port to capture with tcpdump (optional)",
-    )
+    # parser.add_argument(
+    #     "-d",
+    #     "--tcpdump",
+    #     action="store_true",
+    #     help="Enable tcpdump capture",
+    # )
+    # parser.add_argument(
+    #     "--tcpdump_interface",
+    #     default="any",
+    #     help="Network interface for tcpdump (default: any)",
+    # )
+    # parser.add_argument(
+    #     "--tcpdump_port",
+    #     type=int,
+    #     default=None,
+    #     help="Specific port to capture with tcpdump (optional)",
+    # )
 
     args = parser.parse_args()
 
-    # pensieve video 193s
+    # BBB movie 193s
     run_time = 200
 
     # Setup ABR algorithm server
@@ -301,6 +302,7 @@ def main():
 
     # Start tcpdump if requested
     # ================================================
+    # FIXME: using sudo causes chromium to crash; su doesn't have termux path
     tcpdump_process = None
     tcpdump_output = None
 
