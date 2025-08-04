@@ -1,16 +1,41 @@
 #!/usr/bin/env bash
 
-# Default values
-TARGET_IP=${1:-"10.0.0.1"}  # Default IP if none provided
-TARGET_PORT=${2:-""}         # Empty means any port
-DURATION=${3:-0}             # 0 means run forever
-
-# Set the output log file
-if [ -z "$TARGET_PORT" ]; then
-    LOG_FILE="ss_${TARGET_IP}_any_port.log"
-else
-    LOG_FILE="ss_${TARGET_IP}_${TARGET_PORT}.log"
+# Check if all required arguments are provided
+if [ $# -ne 3 ]; then
+    echo "Error: This script requires exactly 3 arguments: ip port duration"
+    echo "Usage: $0 <ip> <port> <duration_in_seconds>"
+    echo "  ip: IP address to monitor (0 or negative = any IP)"
+    echo "  port: Port to monitor (0 or negative = any port)"
+    echo "  duration_in_seconds: How long to monitor (0 or negative = indefinitely)"
+    echo ""
+    echo "Examples:"
+    echo "  $0 0 0 0              # Monitor all IPs:all_ports indefinitely"
+    echo "  $0 0 80 0             # Monitor any_IP:80 indefinitely"
+    echo "  $0 192.168.1.100 0 0  # Monitor 192.168.1.100:any_port indefinitely"
+    echo "  $0 192.168.1.100 80 60 # Monitor 192.168.1.100:80 for 60 seconds"
+    exit 1
 fi
+
+# Parse arguments
+TARGET_IP="$1"
+TARGET_PORT="$2"
+DURATION="$3"
+
+# Apply defaults for 0 or negative values
+if [ "$TARGET_IP" -le 0 ] 2>/dev/null || [ "$TARGET_IP" = "0" ]; then
+    TARGET_IP=""
+fi
+
+if [ "$TARGET_PORT" -le 0 ] 2>/dev/null || [ "$TARGET_PORT" = "0" ]; then
+    TARGET_PORT=""
+fi
+
+if [ "$DURATION" -le 0 ] 2>/dev/null || [ "$DURATION" = "0" ]; then
+    DURATION=0
+fi
+
+# Set the output log file with timestamp
+LOG_FILE="ss_$(date +%Y%m%d_%H%M%S).log"
 
 # Function to check if required commands exist
 check_dependencies() {
@@ -59,7 +84,13 @@ monitor_connection() {
         fi
 
         # Run the command and capture output
-        if [ -z "$TARGET_PORT" ]; then
+        if [ -z "$TARGET_IP" ] && [ -z "$TARGET_PORT" ]; then
+            # Monitor all IPs and all ports
+            output=$(ss -it)
+        elif [ -z "$TARGET_IP" ]; then
+            # Monitor any IP for the target port
+            output=$(ss -it | grep -E ":[0-9]+.*:${TARGET_PORT}[^0-9]" -A 1 | grep -v -E ":[0-9]+.*:${TARGET_PORT}[^0-9]")
+        elif [ -z "$TARGET_PORT" ]; then
             # Monitor any port for the target IP
             output=$(ss -it | grep -F "${TARGET_IP}:" -A 1 | grep -v -F "${TARGET_IP}:")
         else
@@ -74,28 +105,31 @@ monitor_connection() {
 
 # Show usage if -h or --help is provided
 if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
-    echo "Usage: $0 [target_ip] [target_port] [duration_in_seconds]"
-    echo "  target_ip: Optional. IP address to monitor (default: 10.0.0.1)"
-    echo "  target_port: Optional. Port to monitor (default: any port)"
-    echo "  duration_in_seconds: Optional. How long to monitor (in seconds)"
-    echo "  If no duration is specified, will monitor indefinitely"
+    echo "Usage: $0 <ip> <port> <duration_in_seconds>"
+    echo "  ip: IP address to monitor (0 or negative = any IP)"
+    echo "  port: Port to monitor (0 or negative = any port)"
+    echo "  duration_in_seconds: How long to monitor (0 or negative = indefinitely)"
     echo ""
     echo "Examples:"
-    echo "  $0                    # Monitor 10.0.0.1:any_port indefinitely"
-    echo "  $0 192.168.1.100      # Monitor 192.168.1.100:any_port indefinitely"
-    echo "  $0 192.168.1.100 80   # Monitor 192.168.1.100:80 indefinitely"
+    echo "  $0 0 0 0              # Monitor all IPs:all_ports indefinitely"
+    echo "  $0 0 80 0             # Monitor any_IP:80 indefinitely"
+    echo "  $0 192.168.1.100 0 0  # Monitor 192.168.1.100:any_port indefinitely"
     echo "  $0 192.168.1.100 80 60 # Monitor 192.168.1.100:80 for 60 seconds"
     exit 0
 fi
 
 # Validate duration if provided
 if [ -n "$DURATION" ] && ! [[ "$DURATION" =~ ^[0-9]+$ ]]; then
-    echo "Error: Duration must be a positive number"
+    echo "Error: Duration must be a non-negative number"
     exit 1
 fi
 
 echo "Starting connection monitoring..."
-if [ -z "$TARGET_PORT" ]; then
+if [ -z "$TARGET_IP" ] && [ -z "$TARGET_PORT" ]; then
+    echo "Target: all_IPs:all_ports"
+elif [ -z "$TARGET_IP" ]; then
+    echo "Target: any_IP:${TARGET_PORT}"
+elif [ -z "$TARGET_PORT" ]; then
     echo "Target: ${TARGET_IP}:any_port"
 else
     echo "Target: ${TARGET_IP}:${TARGET_PORT}"
@@ -104,9 +138,6 @@ echo "Logging to: $LOG_FILE"
 
 # Check dependencies before starting
 check_dependencies
-
-# Create or clear log file
-> "$LOG_FILE"
 
 # Start monitoring with error handling
 monitor_connection

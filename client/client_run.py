@@ -29,9 +29,6 @@ VIDEO_STATUS_SCRIPT_PATH = "js/video_status.js"
 ABR_PORT = 8333
 VIDEO_SERVER_PORT = 5202
 
-# Global variable to store tcpdump process
-tcpdump_process = None
-
 
 def load_js_file(filename):
     # Load a JavaScript file from the js directory and return its contents as a string.
@@ -42,113 +39,6 @@ def load_js_file(filename):
             return f.read()
     except Exception as e:
         raise Exception(f"Error loading JavaScript file {filename}: {e}")
-
-
-def start_tcpdump(interface="any", port=None, output_file=None, exp_id="0"):
-    """
-    Start tcpdump to capture network traffic.
-
-    Args:
-        interface (str): Network interface to capture (default: "any")
-        port (int): Specific port to filter (optional)
-        output_file (str): Output file path (optional)
-        exp_id (str): Experiment ID for naming files
-
-    Returns:
-        subprocess.Popen: tcpdump process object
-    """
-    global tcpdump_process
-
-    # Create output directory if it doesn't exist
-    output_dir = f"captures/exp_{exp_id}"
-    os.makedirs(output_dir, exist_ok=True)
-
-    # Generate output filename if not provided
-    if output_file is None:
-        timestamp = time.strftime("%Y%m%d_%H%M%S")
-        output_file = f"{output_dir}/tcpdump_{timestamp}.pcap"
-
-    # Build tcpdump command
-    cmd = ["tcpdump"]
-
-    # Interface
-    cmd.extend(["-i", interface])
-
-    # Port filter
-    if port:
-        cmd.extend(["port", str(port)])
-
-    # Truncate packets to 96 bytes
-    cmd.extend(["-s", "96"])
-
-    # Output file
-    cmd.extend(["-w", output_file])
-
-    # File size rollover
-    cmd.extend(["-C", "1000"])
-
-    try:
-        print(f"Starting tcpdump with command: {' '.join(cmd)}")
-        tcpdump_process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            preexec_fn=os.setsid,  # Create new process group
-        )
-
-        # Wait a moment to ensure tcpdump starts
-        sleep(1)
-
-        if tcpdump_process.poll() is None:
-            print(f"tcpdump started successfully, capturing to: {output_file}")
-            return tcpdump_process, output_file
-        else:
-            stdout, stderr = tcpdump_process.communicate()
-            print(f"tcpdump failed to start!")
-            print(f"STDOUT: {stdout}")
-            print(f"STDERR: {stderr}")
-            return None, None
-
-    except Exception as e:
-        print(f"Error starting tcpdump: {e}")
-        return None, None
-
-
-def stop_tcpdump():
-    """Stop the tcpdump process gracefully."""
-    global tcpdump_process
-
-    if tcpdump_process and tcpdump_process.poll() is None:
-        try:
-            # Send SIGTERM to the process group
-            os.killpg(os.getpgid(tcpdump_process.pid), signal.SIGTERM)
-
-            # Wait for graceful termination
-            try:
-                tcpdump_process.wait(timeout=5)
-                print("tcpdump stopped gracefully")
-            except subprocess.TimeoutExpired:
-                # Force kill if it doesn't stop gracefully
-                os.killpg(os.getpgid(tcpdump_process.pid), signal.SIGKILL)
-                print("tcpdump force killed")
-
-        except Exception as e:
-            print(f"Error stopping tcpdump: {e}")
-            # Try to terminate the process directly
-            try:
-                tcpdump_process.terminate()
-                tcpdump_process.wait(timeout=2)
-            except:
-                tcpdump_process.kill()
-
-
-def cleanup_tcpdump():
-    """Cleanup function to ensure tcpdump is stopped on exit."""
-    stop_tcpdump()
-
-
-# Register cleanup function
-atexit.register(cleanup_tcpdump)
 
 
 def setup_chrome_options(protocol):
@@ -238,26 +128,6 @@ def main():
         help="Server port",
     )
 
-    # FIXME: using sudo causes chromium to crash; su doesn't have termux path
-    # tcpdump
-    # parser.add_argument(
-    #     "-d",
-    #     "--tcpdump",
-    #     action="store_true",
-    #     help="Enable tcpdump capture",
-    # )
-    # parser.add_argument(
-    #     "--tcpdump_interface",
-    #     default="any",
-    #     help="Network interface for tcpdump (default: any)",
-    # )
-    # parser.add_argument(
-    #     "--tcpdump_port",
-    #     type=int,
-    #     default=None,
-    #     help="Specific port to capture with tcpdump (optional)",
-    # )
-
     args = parser.parse_args()
 
     # BBB movie 193s
@@ -299,23 +169,6 @@ def main():
         print(f"STDOUT: {stdout}")
         print(f"STDERR: {stderr}")
         exit(1)
-
-    # Start tcpdump if requested
-    # ================================================
-    # FIXME: using sudo causes chromium to crash; su doesn't have termux path
-    tcpdump_process = None
-    tcpdump_output = None
-
-    if args.tcpdump:
-        print("Starting tcpdump capture...")
-        tcpdump_process, tcpdump_output = start_tcpdump(
-            interface=args.tcpdump_interface, port=args.tcpdump_port, exp_id=args.exp_id
-        )
-
-        if tcpdump_process is None:
-            print("WARNING: tcpdump failed to start, continuing without capture")
-        else:
-            print(f"tcpdump capture started: {tcpdump_output}")
 
     # Selenium setup
     # ================================================
@@ -435,11 +288,6 @@ def main():
     # Cleanup
     print("quitting webdriver")
     driver.quit()
-
-    # Stop tcpdump if running
-    if args.tcpdump and tcpdump_process:
-        print("stopping tcpdump capture")
-        stop_tcpdump()
 
     # Cleanup ABR algorithm server
     print("terminating abr server")

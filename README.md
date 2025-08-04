@@ -1,84 +1,150 @@
-# Measurement pipeline
+# DASH Measurement Pipeline
 
-Scripts for running ABR streaming tests between mobile device and remote video server.
+Measurement pipeline for running ABR (Adaptive Bitrate) streaming tests between mobile devices and remote video servers.
 
-**TODOs:**
+## Overview
 
-- [ ] QUIC logging
-- [ ] Parsers
-- [ ] HTTP multiplexing?
-- [ ] For QUIC, we need to modify implementation to capture packets.
-- [ ] ADB or temux?
-- [ ] Fix occaision broken pipe bug when requesting chunks
-- [ ] Fix tcpdump function
+This project provides scripts and tools for conducting adaptive bitrate streaming experiments, including:
+- Client-side measurement collection on Android devices
+- Server-side video streaming with ABR algorithms
+- Network capture and analysis tools
+- Custom DASH.js implementation with ABR algorithms
 
-## Client
+## Project Status
 
-Require android device as UE.
+- [x] Headless Dash streaming scripts
+- [x] Server and Client network capture
+- [x] TCP measurements
+- [ ] QUIC measurements
+- [x] BOLA and FastMPC ABR algorithms
+- [x] MPC tables compute script
+- [ ] Full cellular capture test
+- [ ] Post processing scripts
+- [ ] HTTP multiplexing analysis
+- [ ] Fix occasional broken pipe bug when requesting chunks
+- [ ] Migrate to state-of-art dash.js
 
-- Install Termux. UE commands are executed inside termux shell
+## Quick Start
 
-- Install dependency in Termux and set up repo. Then we are ready to start
-```sh
-# Allow termux to access download folder
-# Then restart Termux
+### Prerequisites
+
+- Android device with Termux installed
+- Python 3.x on both client and server
+- Network access between client and server
+- Root access for network capture tools
+
+### Running Experiments
+
+1. **Start server-side captures** (see Server Setup section)
+2. **Connect to mobile device** and run client-side capture:
+   ```bash
+   sudo ./run_capture.sh {SERVER_IP}
+   ```
+3. **Connect laptop to UE** and run cellular capture:
+   ```bash
+   # Online mode (for debugging)
+   sudo ./x_desktop -p /dev/ttyUSB0 -b 9600 -s on output.txt
+   
+   # Offline mode
+   sudo ./x_desktop -p /dev/ttyUSB0 -b 9600 -s off raw.log
+   ```
+4. **Create new Termux session** (use hamburger button near ESC key)
+5. **Run experiment** (assuming remote video server is running):
+   ```bash
+   python client_run.py -a {bola|fastmpc} -t tcp -s {SERVER_IP} -p {SERVER_PORT} {EXPERIMENT_ID}
+   ```
+
+## Installation
+
+### Client Setup (Android Device)
+
+#### 1. Install Termux
+- Download and install Termux from F-Droid or Google Play
+- The client commands in this section are executed inside the Termux shell
+
+#### 2. Install Dependencies
+```bash
+# Allow Termux to access download folder, then restart Termux
 termux-setup-storage
 
-# https://wiki.termux.com/wiki/Python
-pkg update
-pkg upgrade
-pkg install python
-pkg install python-numpy
+# Update package manager
+pkg update && pkg upgrade
 
-# chromium
-pkg install x11-repo
-pkg install tur-repo
-pkg install chromium
+# Install Python and dependencies
+pkg install python python-numpy
 
-# selenium
+# Install Chromium for browser automation
+pkg install x11-repo tur-repo chromium
+
+# Install Selenium for web automation
 pip install selenium
 
-# tcpdump if applicable
-pkg install root-repo
-pkg install tcpdump
+# Install tcpdump for network capture (if applicable)
+pkg install root-repo tcpdump
 
-# download scripts
+# Install Git and clone repository
 pkg install git
-git clone {THIS REPO}
+git clone {THIS_REPO}
 ```
 
-- Optional. Run a test. It opens a website and save page screenshot to ~/storage/downloads/screenshot.png
-```sh
+#### 3. Test Installation (Optional)
+Run a test to verify setup:
+```bash
 python client_browser_test.py
 ```
+This opens a website and saves a page screenshot to `~/storage/downloads/screenshot.png`.
 
-- Connect UE to PC and start cellular capturer(*)
+### Server Setup
 
-- Open another Termux tab and start tcpdump (might need to install sudo or use su)
-```sh
-sudo tcpdump -s 96 -w captures.pcap -C 1000
+#### 1. Prepare Video Content
+- The `video_index.html` template provides a dummy page with modified `dash.js`
+- Create a `videos` folder for manifest and video chunks
+- Client scripts will access `videos/manifest.mpd` to start the video player
+- ABR server is initialized locally on the client
+
+#### 2. Precompute MPC Table
+For FastMPC experiments, precompute the optimization table:
+```bash
+python generate_video_config.py {manifest.mpd} {video_directory}
+```
+Place the generated `video_config.json` in `../client/abr_server/`
+
+#### 3. Start Video Server
+```bash
+python3 -m http.server {SERVER_PORT} --bind 0.0.0.0
 ```
 
-- Start experiment
-```sh
-python client_run.py -a fastmpc -t tcp -s {SERVER_IP} -p {SERVER_PORT} {EXPERIMENT_ID}
+#### 4. Start Network Monitoring
+```bash
+# Create captures directory
+mkdir -p ./captures
+
+# Start tcpdump capture
+sudo tcpdump tcp -s 96 -C 1000 -Z $USER -w ./captures/server_$(date +%Y%m%d_%H%M%S).pcap
+
+# Monitor TCP socket statistics
+sudo ./tcp_ss_monitor.sh {TARGET_IP} {TARGET_PORT} {DURATION}
 ```
 
-### Logging
+**Note:** You can leave captures running continuously and perform post-processing later.
 
-ABR server scripts log following metrics in `results` folder. 
+## Metrics and Logging
 
-- Unix timestamp (seconds since epoch) when logging
-- bitrate(Kbps) selected for the video chunk
-- size of the playback buffer(s) after downloading the chunk
-- time(s) spent rebuffering (i.e., playback stalled) for this chunk
-- size(bytes) of the video chunk that was just downloaded
-- time(ms) it took to download the video chunk
-- The reward value calculated by the ABR algorithm for this chunk
+### ABR Server Metrics
+The ABR server scripts log the following metrics in the `results` folder:
 
-Here are the available metrics received by ABR server from custom dash.js
+- **Timestamp**: Unix timestamp (seconds since epoch)
+- **Bitrate**: Selected bitrate (Kbps) for the video chunk
+- **Buffer Size**: Playback buffer size after downloading the chunk
+- **Rebuffer Time**: Time spent rebuffering (playback stalled) for this chunk
+- **Chunk Size**: Size (bytes) of the downloaded video chunk
+- **Download Time**: Time (ms) to download the video chunk
+- **Reward**: QoE value calculated by the ABR algorithm
 
-```js
+### Custom DASH.js Metrics
+The modified DASH.js implementation provides these additional metrics:
+
+```javascript
 var data = {
   'nextChunkSize': next_chunk_size(lastRequested+1),
   'Type': 'BB',
@@ -94,53 +160,39 @@ var data = {
 };
 ```
 
-We use pensieve implementation and linear QoE for fastmpc.
+## ABR Algorithms
 
-> Note: MPC involves solving an optimization problem for each bitrate decision which maximizes the QoE metric over the next 5 video chunks. The MPC [51] paper describes a method, fastMPC, which precomputes the solution to this optimization problem for a quantized set of input values (e.g., buffer size, throughput prediction, etc.). 
-> Because the implementation of fastMPC is not publicly available, we implemented MPC using our ABR server as follows. 
-> For each bitrate decision, we solve the optimization problem exactly on the ABR server by enumerating all possibilities for the next 5 chunks. 
-> We found that the computation takes at most 27 ms for 6 bitrate levels and has negligible impact on QoE.
-> -- [Pensieve](http://web.mit.edu/pensieve/)
+### BOLA
+Basic implementation of the BOLA (Buffer Occupancy based Lyapunov Algorithm) ABR algorithm.
 
-## Server
+### FastMPC
+Implementation of Model Predictive Control (MPC) with optimization:
 
-Ideally, we can simply keep the video server and tcpdump running. We can always filter packets later.
+> **Note:** MPC involves solving an optimization problem for each bitrate decision to maximize QoE over the next 5 video chunks. The FastMPC paper describes a method that precomputes solutions for quantized input values. Since the original FastMPC implementation is not publicly available, we implemented MPC by solving the optimization problem exactly on the ABR server by enumerating all possibilities for the next 5 chunks. Computation takes at most 27ms for 6 bitrate levels with negligible impact on QoE.
+> 
+> — [Pensieve](http://web.mit.edu/pensieve/)
 
-### Prepare video
+## Project Structure
 
-The template `video_index.html` is a dummy page, only providing the modified `dash.js`.
-
-The client side script will access `videos/manifest.mpd` url to start the video player and initialize ABR server locally.
-
-#### Precompute MPC table
-
-For this experiment, we precompute the table for MPC algorithm according to the video, as specified in the paper.
-
-- Generate `video_config.json`
-```sh
-python generate_video_config.py {manifest.mpd} {video_directory}
 ```
-- Put the file in the `../client/abr_server/`
-
-### Serving videos
-
-```sh
-# tcp server
-python3 -m http.server 5202 --bind 0.0.0.0
+dash_meas_aio/
+├── client/                 # Client-side scripts and tools
+│   ├── abr_server/        # ABR algorithm implementations
+│   ├── js/               # Custom DASH.js modifications
+│   └── results/          # Client-side measurement results
+├── video_server/         # Server-side video streaming
+│   ├── js/              # DASH.js library
+│   └── videos/          # Video content and manifests
+└── reference/           # Reference materials and documentation
 ```
 
-### Logging
+## TODO
 
-- Find UE IP in internet (e.g., use iperf3)
+- Broken pipe errors: Occasional connection issues when requesting chunks
+- QUIC capture
+- HTTP multiplexing test
+- Post processing scripts
 
-- Start logging
+## Acknowledgments
 
-```sh
-sudo tcpdump host {UE_IP} tcp -s 96 -C 1000 -w ~/pcap/tcp_capture_%Y-%m-%d_%H-%M-%S.pcap
-sudo ./tcp_ss_monitor.sh {UE_IP}
-```
-
-
-## Acknowledgement
-
-- ABR algorithms and dash.js are modified from [Pensieve](http://web.mit.edu/pensieve/) repository.
+- ABR algorithms and DASH.js modifications are based on the [Pensieve](http://web.mit.edu/pensieve/) repository.
