@@ -18,9 +18,15 @@ This project provides scripts and tools for conducting adaptive bitrate streamin
 - [ ] QUIC measurements
 - [x] BOLA and FastMPC ABR algorithms
 - [x] MPC tables compute script
-- [ ] Full cellular capture test
+- [ ] Cellular full function test
+   - [ ] LTE RRC
+   - [ ] 5G RRC version issue
 - [ ] Post processing scripts
-- [ ] HTTP multiplexing analysis
+   - [ ] Cellular logs
+   - [x] TCP ss
+   - [ ] QUIC
+   - [ ] ABR logs
+- [x] HTTP/2/3 multiplexing. Should work.
 - [ ] Fix occasional broken pipe bug when requesting chunks
 - [ ] Migrate to state-of-art dash.js
 
@@ -43,10 +49,10 @@ This project provides scripts and tools for conducting adaptive bitrate streamin
 3. **Connect laptop to UE** and run cellular capture:
    ```bash
    # Online mode (for debugging)
-   sudo ./x_desktop -p /dev/ttyUSB0 -b 9600 -s on output.txt
+   sudo ./cellular_monitor -p /dev/ttyUSB0 -b 9600 -s on output.txt
    
    # Offline mode
-   sudo ./x_desktop -p /dev/ttyUSB0 -b 9600 -s off raw.log
+   sudo ./cellular_monitor -p /dev/ttyUSB0 -b 9600 -s off raw.log
    ```
 4. **Create new Termux session** (use hamburger button near ESC key)
 5. **Run experiment** (assuming remote video server is running):
@@ -111,7 +117,7 @@ Place the generated `video_config.json` in `../client/abr_server/`
 
 #### 3. Start Video Server
 ```bash
-python3 -m http.server {SERVER_PORT} --bind 0.0.0.0
+python3 -m http.server 5202 --bind 0.0.0.0 --protocol HTTP/2
 ```
 
 #### 4. Start Network Monitoring
@@ -171,27 +177,6 @@ Implementation of Model Predictive Control (MPC) with optimization:
 > **Note:** MPC involves solving an optimization problem for each bitrate decision to maximize QoE over the next 5 video chunks. The FastMPC paper describes a method that precomputes solutions for quantized input values. Since the original FastMPC implementation is not publicly available, we implemented MPC by solving the optimization problem exactly on the ABR server by enumerating all possibilities for the next 5 chunks. Computation takes at most 27ms for 6 bitrate levels with negligible impact on QoE.
 > 
 > — [Pensieve](http://web.mit.edu/pensieve/)
-
-## Project Structure
-
-```
-dash_meas_aio/
-├── client/                 # Client-side scripts and tools
-│   ├── abr_server/        # ABR algorithm implementations
-│   ├── js/               # Custom DASH.js modifications
-│   └── results/          # Client-side measurement results
-├── video_server/         # Server-side video streaming
-│   ├── js/              # DASH.js library
-│   └── videos/          # Video content and manifests
-└── reference/           # Reference materials and documentation
-```
-
-## TODO
-
-- Broken pipe errors: Occasional connection issues when requesting chunks
-- QUIC capture
-- HTTP multiplexing test
-- Post processing scripts
 
 ## Acknowledgments
 
