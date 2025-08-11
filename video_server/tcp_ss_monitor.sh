@@ -66,7 +66,7 @@ monitor_connection() {
     # format command
     if [ -z "$TARGET_IP" ] && [ -z "$TARGET_PORT" ]; then
         # Monitor all tcp
-        prompt="ss -ito -nOH"
+        prompt="ss -ito -nOH state established"
     elif [ -z "$TARGET_IP" ]; then
         # Monitor tcp to target port
         prompt="ss -ito -nOH state established '( sport = :${TARGET_PORT} )'"
