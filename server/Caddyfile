@@ -1,0 +1,10 @@
+{
+        auto_https disable_redirects
+}
+
+https://vodtest.local:5202 {
+        tls internal
+        root * ./video_server
+        file_server
+        log
+}

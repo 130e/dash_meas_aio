@@ -25,7 +25,9 @@ if [ "$DURATION" -le 0 ] 2>/dev/null || [ "$DURATION" = "0" ]; then
 fi
 
 # Set the output log file with timestamp
-LOG_FILE="ss_$(date +%Y%m%d_%H%M%S).log"
+LOG_DIR="captures"
+LOG_FILE="${LOG_DIR}/ss_$(date +%Y%m%d_%H%M%S).log"
+mkdir -p "$LOG_DIR"
 
 help() {
     echo "Usage: $0 <remote_ip> <local_port> <duration_in_seconds>"

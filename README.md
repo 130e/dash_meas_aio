@@ -17,6 +17,7 @@ This project provides scripts and tools for conducting adaptive bitrate streamin
 - [x] TCP measurements
 - [ ] QUIC measurements
 - [x] BOLA and FastMPC ABR algorithms
+  - [ ] Add chunk index to the log
 - [x] MPC tables compute script
 - [ ] Cellular full function test
    - [ ] LTE RRC
@@ -25,8 +26,8 @@ This project provides scripts and tools for conducting adaptive bitrate streamin
    - [ ] Cellular logs
    - [x] TCP ss
    - [ ] QUIC
-   - [ ] ABR logs
-- [x] HTTP/2/3 multiplexing. Should work.
+   - [x] ABR logs
+- [x] Use HTTP/2/3 to multiplexing over single connection
 - [ ] Fix occasional broken pipe bug when requesting chunks
 - [ ] Migrate to state-of-art dash.js
 
@@ -57,7 +58,7 @@ This project provides scripts and tools for conducting adaptive bitrate streamin
 4. **Create new Termux session** (use hamburger button near ESC key)
 5. **Run experiment** (assuming remote video server is running):
    ```bash
-   python client_run.py -a {bola|fastmpc} -t tcp -s {SERVER_IP} -p {SERVER_PORT} {EXPERIMENT_ID}
+   python client_run.py -a {bola|fastmpc} -t tcp -s {SERVER_IP} {EXPERIMENT_ID}
    ```
 
 ## Installation
@@ -94,18 +95,24 @@ git clone {THIS_REPO}
 ```
 
 #### 3. Test Installation (Optional)
-Run a test to verify setup:
+Run tests to verify setup:
 ```bash
-python client_browser_test.py
+# Test browser functionality
+# This opens a website and saves a page screenshot to `~/storage/downloads/screenshot.png`
+python client_browser_func_test.py
+# Test browser https functionality
+# Check Caddy server logs for https requests
+python client_browser_https_test.py
 ```
-This opens a website and saves a page screenshot to `~/storage/downloads/screenshot.png`.
 
 ### Server Setup
 
+Navigate to `server` directory.
+
 #### 1. Prepare Video Content
-- The `video_index.html` template provides a dummy page with modified `dash.js`
-- Create a `videos` folder for manifest and video chunks
-- Client scripts will access `videos/manifest.mpd` to start the video player
+- The `video_server/video_index.html` template provides a dummy page with modified `dash.js`
+- Create a `video_server/videos` folder for manifest and video chunks
+- Client scripts will access `video_server/videos/manifest.mpd` to start the video player
 - ABR server is initialized locally on the client
 
 #### 2. Precompute MPC Table
@@ -113,11 +120,12 @@ For FastMPC experiments, precompute the optimization table:
 ```bash
 python generate_video_config.py {manifest.mpd} {video_directory}
 ```
-Place the generated `video_config.json` in `../client/abr_server/`
+Place the generated `video_config.json` in `client/abr_server/` in **client device**.
 
 #### 3. Start Video Server
 ```bash
-python3 -m http.server 5202 --bind 0.0.0.0 --protocol HTTP/2
+# Start Caddy server
+caddy run --config ./Caddyfile
 ```
 
 #### 4. Start Network Monitoring
@@ -129,10 +137,8 @@ mkdir -p ./captures
 sudo tcpdump tcp -s 96 -C 1000 -Z $USER -w ./captures/server_$(date +%Y%m%d_%H%M%S).pcap
 
 # Monitor TCP socket statistics
-sudo ./tcp_ss_monitor.sh {TARGET_IP} {TARGET_PORT} {DURATION}
+sudo ./tcp_ss_monitor.sh 0 5202 0
 ```
-
-**Note:** You can leave captures running continuously and perform post-processing later.
 
 ## Metrics and Logging
 
@@ -148,6 +154,7 @@ The ABR server scripts log the following metrics in the `results` folder:
 - **Reward**: QoE value calculated by the ABR algorithm
 
 ### Custom DASH.js Metrics
+Note for implementing custom abr server. 
 The modified DASH.js implementation provides these additional metrics:
 
 ```javascript
@@ -177,6 +184,40 @@ Implementation of Model Predictive Control (MPC) with optimization:
 > **Note:** MPC involves solving an optimization problem for each bitrate decision to maximize QoE over the next 5 video chunks. The FastMPC paper describes a method that precomputes solutions for quantized input values. Since the original FastMPC implementation is not publicly available, we implemented MPC by solving the optimization problem exactly on the ABR server by enumerating all possibilities for the next 5 chunks. Computation takes at most 27ms for 6 bitrate levels with negligible impact on QoE.
 > 
 > — [Pensieve](http://web.mit.edu/pensieve/)
+
+## Time Synchronization
+
+### Manual NTP Offset Extraction
+Currently, we manually extract the timing offset between the mobile device and the same ntp server that the server is using.
+The assumption is that clock don't drift too much between during experiment.
+Usually the differnce between the offset to ntp server is >20ms.
+
+#### Video Server
+```bash
+# Check if video server is using ntp server (e.g., systemd-timesyncd)
+sudo systemctl status systemd-timesyncd.service
+# Query offset (e.g., 2.time.constant.com)
+ntpdate -q 2.time.constant.com
+```
+#### Client
+In termux, install `chrony` and configure it to use the same ntp server as the video server. Then manually check the offset.
+**TODO:** no systemd on termux thus we cannot run chrony as a service to sync time in rooted phone.
+```bash
+# Install chrony
+pkg install chrony
+# Configure chrony
+mkdir -p ~/.config/chrony
+vim ~/.config/chrony/chrony.conf
+# Add the following lines
+server 2.time.constant.com iburst
+makestep 0.1 3
+
+# Manually check offset
+chronyd -f ~/.config/chrony/chrony.conf -d -Q
+```
+
+### Automatic Time Synchronization
+**TODO:** add a script to automatically sync time and extract offset.
 
 ## Acknowledgments
 

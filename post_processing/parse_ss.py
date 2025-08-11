@@ -32,10 +32,10 @@ ss_headers = [
 def parse_address_port(address_port: str) -> Dict[str, str]:
     """
     Parse an address:port string into separate address and port components.
-    
+
     Args:
         address_port: String like "[::ffff:140.82.23.101]:5202" or "127.0.0.1:8080"
-        
+
     Returns:
         Dictionary with "address" and "port" keys
     """
@@ -44,7 +44,7 @@ def parse_address_port(address_port: str) -> Dict[str, str]:
         # Find the closing bracket
         bracket_end = address_port.find("]")
         address = address_port[1:bracket_end]  # Remove brackets
-        port = address_port[bracket_end + 2:]  # Skip "]:"
+        port = address_port[bracket_end + 2 :]  # Skip "]:"
     else:
         # Handle IPv4 addresses: 127.0.0.1:8080
         if ":" in address_port:
@@ -53,7 +53,7 @@ def parse_address_port(address_port: str) -> Dict[str, str]:
             # No port specified
             address = address_port
             port = ""
-    
+
     return {"address": address, "port": port}
 
 
@@ -180,28 +180,26 @@ def parse_ss_line(line: str) -> Dict[str, Any]:
     items = line.split()
     result["Recv-Q"] = int(items[0])
     result["Send-Q"] = int(items[1])
-    
+
     # Parse address and port fields
     local_address_port = items[2]
     peer_address_port = items[3]
-    
+
     result["Local_Address:Port"] = parse_address_port(local_address_port)
     result["Peer_Address:Port"] = parse_address_port(peer_address_port)
 
     socket_info = items[4:]
-    
+
     # Parse each socket info item, handling special cases
     i = 0
     while i < len(socket_info):
         item = socket_info[i]
         parsed_item = parse_socket_info_item(item)
-        
+
         # Handle special cases where a key is followed by a bandwidth value
         if (
-            (item == "send" or item == "pacing_rate")
-            and i + 1 < len(socket_info)
-            and socket_info[i + 1].endswith("bps")
-        ):
+            item == "send" or item == "pacing_rate" or item == "delivery_rate"
+        ) and i + 1 < len(socket_info):
             parsed_item = parse_socket_info_item(item + ":" + socket_info[i + 1])
             i += 1  # Skip the next item since we've processed it
 
@@ -222,7 +220,7 @@ def parse_ss_log(input_file: str, output_file: str) -> None:
     """
     entries = []
     current_timestamp = None
-    
+
     # Track unique addresses and ports for metadata
     unique_peer_addresses = set()
     unique_peer_ports = set()
@@ -253,13 +251,13 @@ def parse_ss_log(input_file: str, output_file: str) -> None:
                             unique_local_addresses.add(local_addr_data["address"])
                             if local_addr_data["port"]:
                                 unique_local_ports.add(local_addr_data["port"])
-                        
+
                         if "Peer_Address:Port" in parsed_data:
                             peer_addr_data = parsed_data["Peer_Address:Port"]
                             unique_peer_addresses.add(peer_addr_data["address"])
                             if peer_addr_data["port"]:
                                 unique_peer_ports.add(peer_addr_data["port"])
-                        
+
                         entry = {
                             "timestamp_ns": current_timestamp,
                             "timestamp_iso": datetime.fromtimestamp(
@@ -298,7 +296,9 @@ def parse_ss_log(input_file: str, output_file: str) -> None:
         )
 
     print(f"Parsed {len(entries)} entries from {input_file} to {output_file}")
-    print(f"Found {len(unique_peer_addresses)} unique peer addresses and {len(unique_peer_ports)} unique peer ports")
+    print(
+        f"Found {len(unique_peer_addresses)} unique peer addresses and {len(unique_peer_ports)} unique peer ports"
+    )
 
 
 def main():

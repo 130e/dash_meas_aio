@@ -28,6 +28,7 @@ VIDEO_STATUS_SCRIPT_PATH = "js/video_status.js"
 
 ABR_PORT = 8333
 VIDEO_SERVER_PORT = 5202
+VIDEO_SERVER_HOST = "vodtest.local"
 
 
 def load_js_file(filename):
@@ -41,54 +42,63 @@ def load_js_file(filename):
         raise Exception(f"Error loading JavaScript file {filename}: {e}")
 
 
-def setup_chrome_options(protocol):
+def setup_chrome_options(protocol, server_ip):
     """Setup Chrome options based on transport protocol"""
     chrome_options = Options()
-    # TCP-specific options from tcp_selenium.py
+
+    # Disable QUIC (HTTP/3)
+    if protocol == "tcp":
+        chrome_options.add_argument("--disable-quic")
+        chrome_options.add_argument("--disable-features=HTTP3")
+        chrome_options.add_argument("--enable-features=NetworkService,AllowHTTP2")
+
+    chrome_options.add_argument("--disable-http-cache")  # Optional for testing
+    chrome_options.add_argument(
+        f"--host-resolver-rules=MAP {VIDEO_SERVER_HOST} {server_ip}"
+    )
+
     chrome_options.add_argument("--ignore-certificate-errors")
     chrome_options.add_argument("--ignore-ssl-errors")
     chrome_options.add_argument("--disable-web-security")
     chrome_options.add_argument("--allow-running-insecure-content")
     chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--headless")
-    # chrome_options.add_argument("--enable-logging")
+    chrome_options.add_argument("--headless=new")
 
     # Allow autoplay in headless mode
     chrome_options.add_argument("--autoplay-policy=no-user-gesture-required")
-    chrome_options.add_argument("--disable-features=VizDisplayCompositor")
     chrome_options.add_argument("--disable-background-timer-throttling")
     chrome_options.add_argument("--disable-backgrounding-occluded-windows")
     chrome_options.add_argument("--disable-renderer-backgrounding")
 
     # Set preferences to allow autoplay
-    chrome_options.add_experimental_option(
-        "prefs",
-        {
-            "profile.default_content_setting_values.media_stream_mic": 1,
-            "profile.default_content_setting_values.media_stream_camera": 1,
-            "profile.default_content_setting_values.geolocation": 1,
-            "profile.default_content_settings.popups": 0,
-            "profile.managed_default_content_settings.images": 2,
-            "profile.default_content_setting_values.notifications": 2,
-            "profile.default_content_setting_values.media_stream": 2,
-            "profile.default_content_setting_values.plugins": 1,
-            "profile.default_content_setting_values.popups": 2,
-            "profile.default_content_setting_values.geolocation": 2,
-            "profile.default_content_setting_values.automatic_downloads": 1,
-            "profile.default_content_setting_values.mixed_script": 1,
-            "profile.default_content_setting_values.media_stream_mic": 2,
-            "profile.default_content_setting_values.media_stream_camera": 2,
-            "profile.default_content_setting_values.protocol_handlers": 2,
-            "profile.default_content_setting_values.midi_sysex": 2,
-            "profile.default_content_setting_values.push_messaging": 2,
-            "profile.default_content_setting_values.ssl_cert_decisions": 2,
-            "profile.default_content_setting_values.metro_switch_to_desktop": 2,
-            "profile.default_content_setting_values.protected_media_identifier": 2,
-            "profile.default_content_setting_values.app_banner": 2,
-            "profile.default_content_setting_values.site_engagement": 2,
-            "profile.default_content_setting_values.durable_storage": 2,
-        },
-    )
+    # chrome_options.add_experimental_option(
+    #     "prefs",
+    #     {
+    #         "profile.default_content_setting_values.media_stream_mic": 1,
+    #         "profile.default_content_setting_values.media_stream_camera": 1,
+    #         "profile.default_content_setting_values.geolocation": 1,
+    #         "profile.default_content_settings.popups": 0,
+    #         "profile.managed_default_content_settings.images": 2,
+    #         "profile.default_content_setting_values.notifications": 2,
+    #         "profile.default_content_setting_values.media_stream": 2,
+    #         "profile.default_content_setting_values.plugins": 1,
+    #         "profile.default_content_setting_values.popups": 2,
+    #         "profile.default_content_setting_values.geolocation": 2,
+    #         "profile.default_content_setting_values.automatic_downloads": 1,
+    #         "profile.default_content_setting_values.mixed_script": 1,
+    #         "profile.default_content_setting_values.media_stream_mic": 2,
+    #         "profile.default_content_setting_values.media_stream_camera": 2,
+    #         "profile.default_content_setting_values.protocol_handlers": 2,
+    #         "profile.default_content_setting_values.midi_sysex": 2,
+    #         "profile.default_content_setting_values.push_messaging": 2,
+    #         "profile.default_content_setting_values.ssl_cert_decisions": 2,
+    #         "profile.default_content_setting_values.metro_switch_to_desktop": 2,
+    #         "profile.default_content_setting_values.protected_media_identifier": 2,
+    #         "profile.default_content_setting_values.app_banner": 2,
+    #         "profile.default_content_setting_values.site_engagement": 2,
+    #         "profile.default_content_setting_values.durable_storage": 2,
+    #     },
+    # )
 
     return chrome_options
 
@@ -118,7 +128,7 @@ def main():
     parser.add_argument(
         "-s",
         "--server_ip",
-        default="localhost",
+        default="127.0.0.1",
         help="Server IP address",
     )
     parser.add_argument(
@@ -172,20 +182,13 @@ def main():
 
     # Selenium setup
     # ================================================
-    chrome_options = setup_chrome_options(args.transport_protocol)
+    chrome_options = setup_chrome_options(args.transport_protocol, args.server_ip)
     service = Service(CHROMEDRIVER_PATH)
     driver = webdriver.Chrome(service=service, options=chrome_options)
     driver.set_script_timeout(180)  # up to 3 minutes for async JS
 
-    # Get target URL based on protocol
-    server_ip = args.server_ip
-    server_port = args.server_port
-    if args.transport_protocol == "tcp":
-        target_url = f"http://{server_ip}:{server_port}/video_index.html"
-    elif args.transport_protocol == "quic":
-        target_url = f"https://{server_ip}:{server_port}/video_index.html"
-    else:
-        raise ValueError(f"Invalid transport protocol: {args.transport_protocol}")
+    # Get target URL
+    target_url = f"https://{VIDEO_SERVER_HOST}:{args.server_port}/video_index.html"
 
     # Navigate & load page
     driver.set_page_load_timeout(10)
