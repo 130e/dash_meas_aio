@@ -102,7 +102,7 @@ Run tests to verify setup:
 python client_browser_func_test.py
 # Test browser https functionality
 # Check Caddy server logs for https requests
-python client_browser_https_test.py
+python client_browser_https_test.py {SERVER_IP}
 ```
 
 ### Server Setup
@@ -110,8 +110,25 @@ python client_browser_https_test.py
 Navigate to `server` directory.
 
 #### 1. Prepare Video Content
+
 - The `video_server/video_index.html` template provides a dummy page with modified `dash.js`
 - Create a `video_server/videos` folder for manifest and video chunks
+-  Encode Dash videos
+
+```shell
+MP4Box -dash 4000 -frag 4000 -rap -profile dashavc264:live \
+bbb_360.mp4#video:id=360 \
+bbb_480.mp4#video:id=480 \
+bbb_720.mp4#video:id=720 \
+bbb_1080.mp4#video:id=1080 \
+bbb_1440.mp4#video:id=1440 \
+bbb_2160.mp4#video:id=2160 \
+bbb_4320.mp4#video:id=4320 \
+-out manifest.mpd
+```
+
+**Note**
+
 - Client scripts will access `video_server/videos/manifest.mpd` to start the video player
 - ABR server is initialized locally on the client
 
@@ -120,7 +137,7 @@ For FastMPC experiments, precompute the optimization table:
 ```bash
 python generate_video_config.py {manifest.mpd} {video_directory}
 ```
-Place the generated `video_config.json` in `client/abr_server/` in **client device**.
+Place the generated `video_config.json` in `client/abr_server/` in **client device** before running experiment.
 
 #### 3. Start Video Server
 ```bash

@@ -570,7 +570,7 @@ def plot_delivery_rate_and_abr_bitrate(
         ax1.plot(relative_timestamps, delivery_rates, "b-", linewidth=1, alpha=0.8)
         ax1.set_ylabel("Delivery Rate (bps)", fontsize=12)
         ax1.set_title(
-            f"Delivery Rate vs Time for Peer Port {peer_port}",
+            f"Server TCP delivery rate - Port {peer_port}",
             fontsize=14,
             fontweight="bold",
         )
@@ -630,7 +630,7 @@ def plot_delivery_rate_and_abr_bitrate(
             markersize=4,
         )
         ax2.set_ylabel("ABR Bitrate (kbps)", fontsize=12)
-        ax2.set_title("ABR Bitrate vs Time", fontsize=14, fontweight="bold")
+        ax2.set_title("Client ABR chunk selection bitrate", fontsize=14, fontweight="bold")
         ax2.grid(True, alpha=0.3)
 
         # Add statistics for ABR bitrate
@@ -665,11 +665,11 @@ def plot_delivery_rate_and_abr_bitrate(
     ax2.set_xlabel("Time (seconds)", fontsize=12)
 
     # Add overall duration to the figure
-    fig.suptitle(
-        f"Network Performance Analysis - Total Duration: {duration_sec:.1f}s",
-        fontsize=16,
-        fontweight="bold",
-    )
+    # fig.suptitle(
+    #     f"Network Performance Analysis - Total Duration: {duration_sec:.1f}s",
+    #     fontsize=16,
+    #     fontweight="bold",
+    # )
 
     plt.tight_layout()
 

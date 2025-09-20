@@ -1,5 +1,7 @@
+.DS_Store
 reference/
-video_server/videos/
+server/video_server/videos/
 **/captures/
 **/results/
+*.png
 __pycache__
