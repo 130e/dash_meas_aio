@@ -244,7 +244,7 @@ def main():
     if len(sys.argv) != 3:
         print("Usage: python generate_video_config.py <manifest.mpd> <video_directory>")
         print(
-            "Example: python generate_video_config.py ../reference/video_server/Manifest.mpd ../reference/video_server/videos/"
+            "Example: python generate_video_config.py chunks/manifest.mpd chunks/"
         )
         sys.exit(1)
 

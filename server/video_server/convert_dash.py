@@ -5,13 +5,14 @@ import os
 
 # Renditions: resolution + target bitrate (average)
 renditions = {
-    "360":  {"size": "640x360",   "bv": "1500k"},
-    "480":  {"size": "854x480",   "bv": "4000k"},
-    "720":  {"size": "1280x720",  "bv": "7500k"},
-    "1080": {"size": "1920x1080", "bv": "12000k"},
-    "1440": {"size": "2560x1440", "bv": "24000k"},
-    "2160": {"size": "3840x2160", "bv": "60M"},
-    "4320": {"size": "7680x4320", "bv": "180M"},
+    "360_1M": {"size": "640x360", "bv": "1500k"},
+    "480_4M": {"size": "854x480", "bv": "4000k"},
+    "720_8M": {"size": "1280x720", "bv": "7500k"},
+    "1080_12M": {"size": "1920x1080", "bv": "12000k"},
+    "1440_24M": {"size": "2560x1440", "bv": "24000k"},
+    "2160_60M": {"size": "3840x2160", "bv": "60M"},
+    # "4320": {"size": "7680x4320", "bv": "180M"}, # 8K support is spotty
+    "2160_180M": {"size": "3840x2160", "bv": "180M"},  # Emulate 8K video
 }
 
 
@@ -35,8 +36,8 @@ def fmt_bitrate(bps):
 
 def encode_variant(tag, settings, input_file, output_dir, prefix):
     bv = parse_bitrate(settings["bv"])
-    maxrate = int(bv * 1.2)      # max bitrate
-    bufsize = int(bv * 2.0)      # buffer
+    maxrate = int(bv * 1.2)  # max bitrate
+    bufsize = int(bv * 2.0)  # buffer
 
     output_file = os.path.join(output_dir, f"{prefix}_{tag}.mp4")
 
@@ -45,23 +46,43 @@ def encode_variant(tag, settings, input_file, output_dir, prefix):
         return output_file
 
     cmd = [
-        "ffmpeg", "-y",
-        "-threads", "16",
-        "-i", input_file,
+        "ffmpeg",
+        "-y",
+        "-hide_banner",
+        "-hwaccel",
+        "cuda",
+        "-threads",
+        "0",  # Let ffmpeg decide
+        "-i",
+        input_file,
         "-an",  # no audio (video-only)
-        "-c:v", "libx264",
-        "-b:v", settings["bv"],
-        "-maxrate", fmt_bitrate(maxrate),
-        "-bufsize", fmt_bitrate(bufsize),
-        "-s", settings["size"],
-        "-r", "60",
-        "-preset", "slow",
-        "-g", "240",
-        "-keyint_min", "240",
-        "-sc_threshold", "0",
-        "-profile:v", "high",
-        "-movflags", "+faststart",
-        output_file
+        "-c:v",
+        "h264_nvenc",
+        "-preset",
+        "p3",
+        "-b:v",
+        settings["bv"],
+        "-maxrate",
+        fmt_bitrate(maxrate),
+        "-bufsize",
+        fmt_bitrate(bufsize),
+        "-s",
+        settings["size"],
+        "-r",
+        "60",
+        "-preset",
+        "slow",
+        "-g",
+        "240",
+        "-keyint_min",
+        "240",
+        "-sc_threshold",
+        "0",
+        "-profile:v",
+        "high",
+        "-movflags",
+        "+faststart",
+        output_file,
     ]
     print(f"Encoding {tag}p...")
     subprocess.run(cmd, check=True)
@@ -75,12 +96,16 @@ def extract_audio(input_file, output_dir, prefix):
         return audio_file
 
     cmd = [
-        "ffmpeg", "-y",
-        "-i", input_file,
+        "ffmpeg",
+        "-y",
+        "-i",
+        input_file,
         "-vn",  # no video (audio-only)
-        "-c:a", "aac",
-        "-b:a", "128k",
-        audio_file
+        "-c:a",
+        "aac",
+        "-b:a",
+        "128k",
+        audio_file,
     ]
     print("Extracting audio track...")
     subprocess.run(cmd, check=True)
@@ -90,9 +115,16 @@ def extract_audio(input_file, output_dir, prefix):
 def package_dash(output_files, audio_file, mpd_path):
     print("Packaging DASH manifest...")
     cmd = [
-        "MP4Box", "-dash", "4000", "-frag", "4000",
-        "-rap", "-profile", "dashavc264:live",
-        "-out", mpd_path
+        "MP4Box",
+        "-dash",
+        "4000",
+        "-frag",
+        "4000",
+        "-rap",
+        "-profile",
+        "dashavc264:live",
+        "-out",
+        mpd_path,
     ]
     cmd.extend(output_files)
     cmd.append(audio_file)
@@ -101,11 +133,28 @@ def package_dash(output_files, audio_file, mpd_path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Encode multiple DASH renditions and package with MP4Box.")
-    parser.add_argument("input_file", help="Input video file (e.g. bbb_sunflower_native_60fps_normal.mp4)")
-    parser.add_argument("-o", "--output-dir", default="chunks", help="Output directory for generated files")
-    parser.add_argument("-p", "--prefix", default="bbb", help="Output file prefix (default: bbb)")
-    parser.add_argument("-m", "--mpd-name", default="manifest.mpd", help="MPD filename (default: manifest.mpd)")
+    parser = argparse.ArgumentParser(
+        description="Encode multiple DASH renditions and package with MP4Box."
+    )
+    parser.add_argument(
+        "input_file",
+        help="Input video file (e.g. bbb_sunflower_native_60fps_normal.mp4)",
+    )
+    parser.add_argument(
+        "-o",
+        "--output-dir",
+        default="chunks",
+        help="Output directory for generated files",
+    )
+    parser.add_argument(
+        "-p", "--prefix", default="bbb", help="Output file prefix (default: bbb)"
+    )
+    parser.add_argument(
+        "-m",
+        "--mpd-name",
+        default="manifest.mpd",
+        help="MPD filename (default: manifest.mpd)",
+    )
     args = parser.parse_args()
 
     os.makedirs(args.output_dir, exist_ok=True)
@@ -114,7 +163,9 @@ def main():
     # Encode all video renditions
     video_files = []
     for tag, settings in renditions.items():
-        video_files.append(encode_variant(tag, settings, args.input_file, args.output_dir, args.prefix))
+        video_files.append(
+            encode_variant(tag, settings, args.input_file, args.output_dir, args.prefix)
+        )
 
     # Extract single audio file
     audio_file = extract_audio(args.input_file, args.output_dir, args.prefix)
