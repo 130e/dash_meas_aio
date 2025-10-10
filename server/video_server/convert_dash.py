@@ -127,7 +127,7 @@ def package_dash(output_files, audio_file, mpd_path):
         mpd_path,
     ]
     cmd.extend(output_files)
-    cmd.append(audio_file)
+    # cmd.append(audio_file) # skip audio due to min dash does not support it
     subprocess.run(cmd, check=True)
     print(f"✅ DASH manifest generated at {mpd_path}")
 

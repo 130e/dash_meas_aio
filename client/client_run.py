@@ -29,6 +29,7 @@ VIDEO_STATUS_SCRIPT_PATH = "js/video_status.js"
 ABR_PORT = 8333
 VIDEO_SERVER_PORT = 5202
 VIDEO_SERVER_HOST = "vodtest.local"
+DURATION = 660
 
 
 def load_js_file(filename):
@@ -137,11 +138,17 @@ def main():
         default=VIDEO_SERVER_PORT,
         help="Server port",
     )
+    parser.add_argument(
+        "-d",
+        "--duration",
+        default=DURATION,
+        help="Duration",
+    )
 
     args = parser.parse_args()
 
-    # BBB movie 193s
-    run_time = 200
+    # BBB sunflower 10min 34s
+    run_time = args.duration
 
     # Setup ABR algorithm server
     # ================================================
