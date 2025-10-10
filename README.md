@@ -22,6 +22,7 @@ This project provides scripts and tools for conducting adaptive bitrate streamin
 - [ ] Cellular full function test
    - [ ] LTE RRC
    - [ ] 5G RRC version issue
+   - [ ] OnePlus N30 support
 - [ ] Post processing scripts
    - [ ] Cellular logs
    - [x] TCP ss
@@ -129,7 +130,7 @@ bbb_4320.mp4#video:id=4320 \
 
 **Note**
 
-- Client scripts will access `video_server/videos/manifest.mpd` to start the video player
+- Client scripts will access `video_server/chunks/manifest.mpd` to start the video player
 - ABR server is initialized locally on the client
 
 #### 2. Precompute MPC Table

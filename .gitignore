@@ -1,6 +1,7 @@
 .DS_Store
 reference/
-server/video_server/videos/
+server/video_server/chunks/
+server/video_server/chunks_backup/
 **/captures/
 **/results/
 *.png

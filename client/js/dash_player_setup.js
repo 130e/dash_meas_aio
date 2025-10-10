@@ -4,7 +4,7 @@
 function setupDashPlayer(config = {}) {
     // Default configuration
     const defaultConfig = {
-        manifestUrl: "videos/manifest.mpd",
+        manifestUrl: "chunks/manifest.mpd",
         abrAlgorithm: 0,
         enableRLABR: false,
         bufferTimeAtTopQuality: 60,

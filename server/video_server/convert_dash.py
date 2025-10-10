@@ -4,7 +4,6 @@ import argparse
 import os
 
 # Renditions: resolution + target bitrate (average)
-# Only specify 'bv', we'll calculate maxrate and bufsize
 renditions = {
     "360":  {"size": "640x360",   "bv": "1500k"},
     "480":  {"size": "854x480",   "bv": "4000k"},
@@ -15,6 +14,7 @@ renditions = {
     "4320": {"size": "7680x4320", "bv": "180M"},
 }
 
+
 def parse_bitrate(bv_str):
     """Convert '800k' or '120M' into integer bits per second."""
     if bv_str.lower().endswith("k"):
@@ -24,22 +24,31 @@ def parse_bitrate(bv_str):
     else:
         return int(bv_str)
 
+
 def fmt_bitrate(bps):
     """Format integer bps back into ffmpeg-friendly string (k or M)."""
-    if bps % 1000000 == 0:
-        return f"{bps // 1000000}M"
+    if bps >= 1_000_000 and bps % 1_000_000 == 0:
+        return f"{bps // 1_000_000}M"
     else:
         return f"{bps // 1000}k"
 
-def encode_variant(tag, settings, input_file, output_prefix):
-    bv = parse_bitrate(settings["bv"])
-    maxrate = int(bv * 1.07)     # +7%
-    bufsize = int(bv * 1.5)      # 1.5x buffer
 
-    output_file = f"{output_prefix}_{tag}.mp4"
+def encode_variant(tag, settings, input_file, output_dir, prefix):
+    bv = parse_bitrate(settings["bv"])
+    maxrate = int(bv * 1.2)      # max bitrate
+    bufsize = int(bv * 2.0)      # buffer
+
+    output_file = os.path.join(output_dir, f"{prefix}_{tag}.mp4")
+
+    if os.path.isfile(output_file):
+        print(f"Skipping {tag}p - {output_file} already exists")
+        return output_file
+
     cmd = [
         "ffmpeg", "-y",
+        "-threads", "16",
         "-i", input_file,
+        "-an",  # no audio (video-only)
         "-c:v", "libx264",
         "-b:v", settings["bv"],
         "-maxrate", fmt_bitrate(maxrate),
@@ -51,35 +60,69 @@ def encode_variant(tag, settings, input_file, output_prefix):
         "-keyint_min", "240",
         "-sc_threshold", "0",
         "-profile:v", "high",
-        "-c:a", "aac",
-        "-b:a", "128k",
         "-movflags", "+faststart",
         output_file
     ]
-    print("Running:", " ".join(cmd))
+    print(f"Encoding {tag}p...")
     subprocess.run(cmd, check=True)
+    return output_file
+
+
+def extract_audio(input_file, output_dir, prefix):
+    audio_file = os.path.join(output_dir, f"{prefix}_audio.mp4")
+    if os.path.isfile(audio_file):
+        print(f"Skipping audio extraction - {audio_file} already exists")
+        return audio_file
+
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", input_file,
+        "-vn",  # no video (audio-only)
+        "-c:a", "aac",
+        "-b:a", "128k",
+        audio_file
+    ]
+    print("Extracting audio track...")
+    subprocess.run(cmd, check=True)
+    return audio_file
+
+
+def package_dash(output_files, audio_file, mpd_path):
+    print("Packaging DASH manifest...")
+    cmd = [
+        "MP4Box", "-dash", "4000", "-frag", "4000",
+        "-rap", "-profile", "dashavc264:live",
+        "-out", mpd_path
+    ]
+    cmd.extend(output_files)
+    cmd.append(audio_file)
+    subprocess.run(cmd, check=True)
+    print(f"✅ DASH manifest generated at {mpd_path}")
+
 
 def main():
-    parser = argparse.ArgumentParser(description="Convert video to DASH-compatible MP4 renditions")
-    parser.add_argument("input_file", help="Input video file to convert")
-    parser.add_argument("-o", "--output-prefix", default="output", 
-                       help="Output file prefix (default: bbb)")
-    
+    parser = argparse.ArgumentParser(description="Encode multiple DASH renditions and package with MP4Box.")
+    parser.add_argument("input_file", help="Input video file (e.g. bbb_sunflower_native_60fps_normal.mp4)")
+    parser.add_argument("-o", "--output-dir", default="chunks", help="Output directory for generated files")
+    parser.add_argument("-p", "--prefix", default="bbb", help="Output file prefix (default: bbb)")
+    parser.add_argument("-m", "--mpd-name", default="manifest.mpd", help="MPD filename (default: manifest.mpd)")
     args = parser.parse_args()
-    
-    # Validate input file exists
-    if not os.path.isfile(args.input_file):
-        print(f"Error: Input file '{args.input_file}' does not exist.")
-        return 1
-    
-    print(f"Converting '{args.input_file}' to DASH renditions...")
-    print(f"Output prefix: {args.output_prefix}")
-    
+
+    os.makedirs(args.output_dir, exist_ok=True)
+    print(f"Converting '{args.input_file}' → DASH renditions in '{args.output_dir}'")
+
+    # Encode all video renditions
+    video_files = []
     for tag, settings in renditions.items():
-        print(f"Encoding {tag}p...")
-        encode_variant(tag, settings, args.input_file, args.output_prefix)
-    print("✅ All renditions generated.")
-    return 0
+        video_files.append(encode_variant(tag, settings, args.input_file, args.output_dir, args.prefix))
+
+    # Extract single audio file
+    audio_file = extract_audio(args.input_file, args.output_dir, args.prefix)
+
+    # Package into MPD
+    mpd_path = os.path.join(args.output_dir, args.mpd_name)
+    package_dash(video_files, audio_file, mpd_path)
+
 
 if __name__ == "__main__":
-    exit(main())
+    main()
