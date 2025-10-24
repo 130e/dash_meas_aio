@@ -34,16 +34,14 @@ def fmt_bitrate(bps):
         return f"{bps // 1000}k"
 
 
-def encode_variant(tag, settings, input_file, output_dir, prefix):
+def encode_variant(tag, settings, input_file, output_file):
+    if not os.path.isfile(input_file):
+        print("Sanity check: input video not found")
+        return None
+
     bv = parse_bitrate(settings["bv"])
     maxrate = int(bv * 1.2)  # max bitrate
     bufsize = int(bv * 2.0)  # buffer
-
-    output_file = os.path.join(output_dir, f"{prefix}_{tag}.mp4")
-
-    if os.path.isfile(output_file):
-        print(f"Skipping {tag}p - {output_file} already exists")
-        return output_file
 
     cmd = [
         "ffmpeg",
@@ -138,12 +136,13 @@ def main():
         description="Encode multiple DASH renditions and package with MP4Box."
     )
     parser.add_argument(
-        "input_file",
+        "-i",
+        "--input_video",
         help="Input video file (e.g. bbb_sunflower_native_60fps_normal.mp4)",
     )
     parser.add_argument(
         "-o",
-        "--output-dir",
+        "--output_dir",
         default="chunks",
         help="Output directory for generated files",
     )
@@ -151,29 +150,40 @@ def main():
         "-p",
         "--prefix",
         default="bbb_sunflower",
-        help="Output file prefix (default: bbb)",
+        help="Output file prefix (default: bbb_sunflower)",
     )
     parser.add_argument(
         "-m",
-        "--mpd-name",
+        "--mpd_name",
         default="manifest.mpd",
-        help="MPD filename (default: manifest.mpd)",
+        help="MPD filename (default: output_dir/manifest.mpd)",
     )
     args = parser.parse_args()
 
     os.makedirs(args.output_dir, exist_ok=True)
-    print(f"Converting '{args.input_file}' → DASH renditions in '{args.output_dir}'")
 
+    # Encode to multiple resolutions
+    if args.input_video:
+        print(f"Encoding '{args.input_video}' -> '{args.output_dir}'")
+    else:
+        print(
+            f"Reuse encoded videos with prefix '{args.prefix}' from {args.output_dir}"
+        )
     # Encode all video renditions
     video_files = []
     for tag, settings in renditions.items():
-        video_files.append(
-            encode_variant(tag, settings, args.input_file, args.output_dir, args.prefix)
-        )
+        output_file = os.path.join(args.output_dir, f"{args.prefix}_{tag}.mp4")
+
+        if os.path.isfile(output_file):
+            print(f"Skipping {tag}p - {output_file} already exists")
+        elif not encode_variant(tag, settings, args.input_video, output_file):
+            raise ValueError("Encoding failed")
+
+        video_files.append(output_file)
 
     # FIXME: min dash does not support audio
     # Extract single audio file
-    # audio_file = extract_audio(args.input_file, args.output_dir, args.prefix)
+    # audio_file = extract_audio(args.input_video, args.output_dir, args.prefix)
 
     # Package into MPD
     mpd_path = os.path.join(args.output_dir, args.mpd_name)
