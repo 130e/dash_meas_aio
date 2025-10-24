@@ -1,19 +1,20 @@
-import time
-import csv
+import argparse
+import atexit
 import base64
+import csv
 import json
 import os
-import sys
+import signal
+import socket
 import subprocess
+import sys
+import time
 from time import sleep
-import argparse
+
 from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
-import socket
-import signal
-import atexit
 
 # Run in termux shell
 BIN_DIR = "/data/data/com.termux/files/usr/bin"
@@ -306,4 +307,5 @@ def main():
 
 
 if __name__ == "__main__":
+    main()
     main()
