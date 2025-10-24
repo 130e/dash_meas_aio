@@ -67,7 +67,7 @@ This project provides scripts and tools for conducting adaptive bitrate streamin
 5. **Run experiment** (assuming remote video server is running):
 
    ```bash
-   python client_run.py -a {bola|fastmpc} -t tcp -s {SERVER_IP} {EXPERIMENT_ID}
+   python client_run.py -a {bola|fastmpc} -t tcp -s {SERVER_IP} -i {EXPERIMENT_ID}
    ```
 
 ## Installation
@@ -92,12 +92,13 @@ pkg update && pkg upgrade
 pkg install python python-numpy
 
 # Install Chromium for browser automation
-pkg install x11-repo tur-repo chromium
+pkg install x11-repo tur-repo
+pkg install chromium
 
 # Install Selenium for web automation
 pip install selenium
 
-# Install tcpdump for network capture (if applicable)
+# (Optional) Install tcpdump for network capture
 pkg install root-repo tcpdump
 
 # Install Git and clone repository
@@ -113,7 +114,9 @@ Run tests to verify setup:
 # Test browser functionality
 # This opens a website and saves a page screenshot to `~/storage/downloads/screenshot.png`
 python client_browser_func_test.py
+
 # Test browser https functionality
+# (Note: Start the Caddy server first!)
 # Check Caddy server logs for https requests
 python client_browser_https_test.py {SERVER_IP}
 ```

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-import subprocess
 import argparse
 import os
+import subprocess
 
 # Renditions: resolution + target bitrate (average)
 renditions = {
@@ -10,9 +10,9 @@ renditions = {
     "720_8M": {"size": "1280x720", "bv": "7500k"},
     "1080_12M": {"size": "1920x1080", "bv": "12000k"},
     "1440_24M": {"size": "2560x1440", "bv": "24000k"},
-    "2160_60M": {"size": "3840x2160", "bv": "60M"},
+    # "2160_60M": {"size": "3840x2160", "bv": "60M"},
     # "4320": {"size": "7680x4320", "bv": "180M"}, # 8K support is spotty
-    "2160_180M": {"size": "3840x2160", "bv": "180M"},  # Emulate 8K video
+    # "2160_180M": {"size": "3840x2160", "bv": "180M"},  # Emulate 8K video
 }
 
 
@@ -112,7 +112,7 @@ def extract_audio(input_file, output_dir, prefix):
     return audio_file
 
 
-def package_dash(output_files, audio_file, mpd_path):
+def package_dash(output_files, mpd_path, audio_file=None):
     print("Packaging DASH manifest...")
     cmd = [
         "MP4Box",
@@ -127,9 +127,10 @@ def package_dash(output_files, audio_file, mpd_path):
         mpd_path,
     ]
     cmd.extend(output_files)
-    # cmd.append(audio_file) # skip audio due to min dash does not support it
+    if audio_file != None:
+        cmd.append(audio_file)
     subprocess.run(cmd, check=True)
-    print(f"✅ DASH manifest generated at {mpd_path}")
+    print(f">> DASH manifest generated at {mpd_path}")
 
 
 def main():
@@ -147,7 +148,10 @@ def main():
         help="Output directory for generated files",
     )
     parser.add_argument(
-        "-p", "--prefix", default="bbb", help="Output file prefix (default: bbb)"
+        "-p",
+        "--prefix",
+        default="bbb_sunflower",
+        help="Output file prefix (default: bbb)",
     )
     parser.add_argument(
         "-m",
@@ -167,12 +171,13 @@ def main():
             encode_variant(tag, settings, args.input_file, args.output_dir, args.prefix)
         )
 
+    # FIXME: min dash does not support audio
     # Extract single audio file
-    audio_file = extract_audio(args.input_file, args.output_dir, args.prefix)
+    # audio_file = extract_audio(args.input_file, args.output_dir, args.prefix)
 
     # Package into MPD
     mpd_path = os.path.join(args.output_dir, args.mpd_name)
-    package_dash(video_files, audio_file, mpd_path)
+    package_dash(video_files, mpd_path)
 
 
 if __name__ == "__main__":
