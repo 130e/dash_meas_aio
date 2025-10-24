@@ -227,7 +227,7 @@ def main():
         }
     else:
         player_config = {
-            "abrAlgorithm": 0,  # Default
+            "abrAlgorithm": 0,  # Default: not sure what this is
         }
 
     # Call dash.js player setup function to pass config

@@ -6,12 +6,13 @@ function setupDashPlayer(config = {}) {
     const defaultConfig = {
         manifestUrl: "chunks/manifest.mpd",
         abrAlgorithm: 0,
-        enableRLABR: false,
-        bufferTimeAtTopQuality: 60,
-        stableBufferTime: 60,
-        bufferToKeep: 60,
-        bufferPruningInterval: 60,
-        enableBufferOccupancyABR: false
+        bufferConfiguration: {
+            enable: false,
+            bufferTimeAtTopQuality: 60,
+            stableBufferTime: 60,
+            bufferToKeep: 60,
+            bufferPruningInterval: 60,
+        }
     };
     
     // Merge with provided config
@@ -34,21 +35,23 @@ function setupDashPlayer(config = {}) {
         
         // Enable rlABR if needed
         if (finalConfig.abrAlgorithm > 1 && finalConfig.abrAlgorithm != 6) {
-            player.enablerlABR(finalConfig.enableRLABR);
+            player.enablerlABR(true);
         }
         
         // Set buffer configuration
-        player.setBufferTimeAtTopQuality(finalConfig.bufferTimeAtTopQuality);
-        player.setStableBufferTime(finalConfig.stableBufferTime);
-        player.setBufferToKeep(finalConfig.bufferToKeep);
-        player.setBufferPruningInterval(finalConfig.bufferPruningInterval);
+        if (finalConfig.bufferConfiguration.enable) {
+            player.setBufferTimeAtTopQuality(finalConfig.bufferConfiguration.bufferTimeAtTopQuality);
+            player.setStableBufferTime(finalConfig.bufferConfiguration.stableBufferTime);
+            player.setBufferToKeep(finalConfig.bufferConfiguration.bufferToKeep);
+            player.setBufferPruningInterval(finalConfig.bufferConfiguration.bufferPruningInterval);
+        }
         
         // Initialize the player
         player.initialize(document.querySelector("#videoPlayer"), finalConfig.manifestUrl, true);
         
         // Enable buffer occupancy ABR for BOLA
         if (finalConfig.abrAlgorithm == 6) {
-            player.enableBufferOccupancyABR(finalConfig.enableBufferOccupancyABR);
+            player.enableBufferOccupancyABR(true);
         }
         
         // Set the ABR algorithm
