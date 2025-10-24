@@ -1,6 +1,4 @@
 import argparse
-import atexit
-import base64
 import csv
 import json
 import os
@@ -14,32 +12,17 @@ from time import sleep
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
 
 # Run in termux shell
 BIN_DIR = "/data/data/com.termux/files/usr/bin"
 CHROMEDRIVER_PATH = BIN_DIR + "/chromedriver"
 
-PLAYER_SETUP_SCRIPT_PATH = "js/playback_dashv5.js"
-
-ABR_PORT = 8333
-VIDEO_SERVER_PORT = 5202
-VIDEO_SERVER_HOST = "vodtest.local"
-DURATION = 660
+DEFAULT_VIDEO_SERVER_PORT = 5202
+DEFAULT_VIDEO_SERVER_HOSTNAME = "vodtest.local"  # Don't need to change this
+DEFAULT_DURATION = 660
 
 
-def load_js_file(filename):
-    # Load a JavaScript file from the js directory and return its contents as a string.
-    # js_dir = os.path.join(os.path.dirname(__file__), "js")
-    # file_path = os.path.join(js_dir, filename)
-    try:
-        with open(filename, "r") as f:
-            return f.read()
-    except Exception as e:
-        raise Exception(f"Error loading JavaScript file {filename}: {e}")
-
-
-def setup_chrome_options(protocol, server_ip):
+def setup_chrome_options(protocol, server_hostname, server_ip):
     """Setup Chrome options based on transport protocol"""
     chrome_options = Options()
 
@@ -51,7 +34,7 @@ def setup_chrome_options(protocol, server_ip):
 
     chrome_options.add_argument("--disable-http-cache")  # Optional for testing
     chrome_options.add_argument(
-        f"--host-resolver-rules=MAP {VIDEO_SERVER_HOST} {server_ip}"
+        f"--host-resolver-rules=MAP {server_hostname} {server_ip}"
     )
 
     chrome_options.add_argument("--ignore-certificate-errors")
@@ -86,6 +69,11 @@ def main():
         help="Transport protocol to use (tcp or quic)",
     )
     parser.add_argument(
+        "--hostname",
+        default=DEFAULT_VIDEO_SERVER_HOSTNAME,
+        help="Server hostname (no need to be real)",
+    )
+    parser.add_argument(
         "-s",
         "--server_ip",
         default="127.0.0.1",
@@ -94,13 +82,13 @@ def main():
     parser.add_argument(
         "-p",
         "--server_port",
-        default=VIDEO_SERVER_PORT,
+        default=DEFAULT_VIDEO_SERVER_PORT,
         help="Server port",
     )
     parser.add_argument(
         "-d",
         "--duration",
-        default=DURATION,
+        default=DEFAULT_DURATION,
         help="Duration",
     )
 
@@ -110,22 +98,36 @@ def main():
     run_time = args.duration
 
     # Selenium setup
-    # ================================================
     chrome_options = setup_chrome_options(args.transport_protocol, args.server_ip)
     service = Service(CHROMEDRIVER_PATH)
     driver = webdriver.Chrome(service=service, options=chrome_options)
     driver.set_script_timeout(180)  # up to 3 minutes for async JS
 
     # Get target URL
-    target_url = f"https://{VIDEO_SERVER_HOST}:{args.server_port}/video_index.html"
+    target_url = f"https://{args.hostname}:{args.server_port}/index_dashv5.html"
 
     # Navigate & load page
     driver.set_page_load_timeout(10)
     driver.get(target_url)
 
     # Load dash.js player setup script
-    player_setup_script = load_js_file(PLAYER_SETUP_SCRIPT_PATH)
-    driver.execute_script(player_setup_script)
+    script_path = "js/playback_dashv5.js"
+    with open(script_path, "r") as f:
+        player_setup_script = f.read()
+        driver.execute_script(player_setup_script)
+
+    # Collect metrics every X secs
+    for i in range(0, run_time, 10):
+        print(f"Log time:{i*10}s")
+        playback_time = driver.execute_script(
+            "return document.getElementById('videoPlayer').currentTime;"
+        )
+        print("Playback time:", playback_time)
+        metrics = driver.execute_script(
+            "return player.getDashMetrics().getCurrentBufferLevel('video');"
+        )
+        print("Buffer level:", metrics)
+        print()
 
     sleep(run_time)
 
@@ -135,5 +137,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
     main()
