@@ -162,28 +162,33 @@ def main():
         }
     });
 
-    // Track quality changes
-    player.on(dashjs.MediaPlayer.events.QUALITY_CHANGE_RENDERED, (e) => {
+    // Track quality changes using updated dash.js API
+    player.on('qualityChangeRendered', (e) => {
         const now = performance.now();
-        const newQuality = e.newQuality;
-        const bitrateList = player.getBitrateInfoListFor('video');
-        const newBitrate = bitrateList[newQuality] ? bitrateList[newQuality].bitrate / 1000 : null;
-        
-        if (window.qoeMetrics.quality.current !== null) {
-            const duration = now - window.qoeMetrics.quality.lastChange;
-            window.qoeMetrics.quality.timeSpent[window.qoeMetrics.quality.current] = 
-                (window.qoeMetrics.quality.timeSpent[window.qoeMetrics.quality.current] || 0) + duration;
+        const mediaType = e.mediaType;
+        if (mediaType === 'video') {
+            // Get quality info using current dash.js API
+            const streamInfo = player.getActiveStream().getStreamInfo();
+            const dashMetrics = player.getDashMetrics();
+            const quality = dashMetrics.getCurrentQuality(mediaType, streamInfo);
+            const bitrate = dashMetrics.getBandwidthForRepresentation(quality, streamInfo.index);
+            
+            if (window.qoeMetrics.quality.current !== null) {
+                const duration = now - window.qoeMetrics.quality.lastChange;
+                window.qoeMetrics.quality.timeSpent[window.qoeMetrics.quality.current] = 
+                    (window.qoeMetrics.quality.timeSpent[window.qoeMetrics.quality.current] || 0) + duration;
+            }
+            
+            window.qoeMetrics.quality.switches.push({
+                timestamp: now,
+                from: window.qoeMetrics.quality.current,
+                to: quality,
+                bitrate: bitrate / 1000  // Convert to kbps
+            });
+            
+            window.qoeMetrics.quality.current = quality;
+            window.qoeMetrics.quality.lastChange = now;
         }
-        
-        window.qoeMetrics.quality.switches.push({
-            timestamp: now,
-            from: window.qoeMetrics.quality.current,
-            to: newQuality,
-            bitrate: newBitrate
-        });
-        
-        window.qoeMetrics.quality.current = newQuality;
-        window.qoeMetrics.quality.lastChange = now;
     });
 
     // Track errors
@@ -195,8 +200,9 @@ def main():
         });
     });
 
-    // Initialize current quality
-    window.qoeMetrics.quality.current = player.getQualityFor('video');
+    // Initialize current quality using updated API
+    const streamInfo = player.getActiveStream().getStreamInfo();
+    window.qoeMetrics.quality.current = player.getDashMetrics().getCurrentQuality('video', streamInfo);
     """
     driver.execute_script(player_setup_script)
 
@@ -214,10 +220,11 @@ def main():
         # Collect current metrics
         metrics = driver.execute_script("""
             const video = document.getElementById('videoPlayer');
-            const bufferLevel = player.getDashMetrics().getCurrentBufferLevel('video');
-            const bitrateList = player.getBitrateInfoListFor('video');
-            const currentQuality = player.getQualityFor('video');
-            const currentBitrate = bitrateList[currentQuality] ? bitrateList[currentQuality].bitrate / 1000 : null;
+            const dashMetrics = player.getDashMetrics();
+            const streamInfo = player.getActiveStream().getStreamInfo();
+            const bufferLevel = dashMetrics.getCurrentBufferLevel('video');
+            const currentQuality = dashMetrics.getCurrentQuality('video', streamInfo);
+            const currentBitrate = dashMetrics.getBandwidthForRepresentation(currentQuality, streamInfo.index) / 1000; // Convert to kbps
             
             // Get video playback quality if available
             let playbackQuality = {};
