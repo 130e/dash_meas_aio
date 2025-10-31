@@ -10,9 +10,9 @@ renditions = {
     "720_8M": {"size": "1280x720", "bv": "7500k"},
     "1080_12M": {"size": "1920x1080", "bv": "12000k"},
     "1440_24M": {"size": "2560x1440", "bv": "24000k"},
-    # "2160_60M": {"size": "3840x2160", "bv": "60M"},
+    "2160_60M": {"size": "3840x2160", "bv": "60M"},
     # "4320": {"size": "7680x4320", "bv": "180M"}, # 8K support is spotty
-    # "2160_180M": {"size": "3840x2160", "bv": "180M"},  # Emulate 8K video
+    "2160_180M": {"size": "3840x2160", "bv": "180M"},  # Emulate 8K video
 }
 
 
@@ -68,8 +68,6 @@ def encode_variant(tag, settings, input_file, output_file):
         settings["size"],
         "-r",
         "60",
-        "-preset",
-        "slow",
         "-g",
         "240",
         "-keyint_min",
@@ -78,6 +76,10 @@ def encode_variant(tag, settings, input_file, output_file):
         "0",
         "-profile:v",
         "high",
+        "-vsync",
+        "cfr",
+        "-avoid_negative_ts",
+        "make_zero",
         "-movflags",
         "+faststart",
         output_file,
@@ -125,7 +127,7 @@ def package_dash(output_files, mpd_path, audio_file=None):
         mpd_path,
     ]
     cmd.extend(output_files)
-    if audio_file != None:
+    if audio_file is not None:
         cmd.append(audio_file)
     subprocess.run(cmd, check=True)
     print(f">> DASH manifest generated at {mpd_path}")
@@ -143,7 +145,7 @@ def main():
     parser.add_argument(
         "-o",
         "--output_dir",
-        default="chunks",
+        default="encoded",
         help="Output directory for generated files",
     )
     parser.add_argument(
@@ -156,7 +158,7 @@ def main():
         "-m",
         "--mpd_name",
         default="manifest.mpd",
-        help="MPD filename (default: output_dir/manifest.mpd)",
+        help="MPD filename (default: manifest.mpd)",
     )
     args = parser.parse_args()
 
@@ -186,7 +188,8 @@ def main():
     # audio_file = extract_audio(args.input_video, args.output_dir, args.prefix)
 
     # Package into MPD
-    mpd_path = os.path.join(args.output_dir, args.mpd_name)
+    chunk_dir = os.path.join(args.output_dir, "chunks")
+    mpd_path = os.path.join(chunk_dir, args.mpd_name)
     package_dash(video_files, mpd_path)
 
 
