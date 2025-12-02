@@ -1,7 +1,8 @@
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
 import sys
+
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 
 # Basic test for selenium
 # Run in termux shell
@@ -20,5 +21,5 @@ options.add_argument(f"--host-resolver-rules=MAP vodtest.local {sys.argv[1]}")
 options.add_argument("--headless=new")
 
 driver = webdriver.Chrome(service=Service(CHROMEDRIVER_PATH), options=options)
-driver.get("https://vodtest.local:5202/video_index.html")
+driver.get("https://vodtest.local:5202/index.html")
 driver.quit()

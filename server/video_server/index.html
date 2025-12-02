@@ -1,0 +1,86 @@
+<!doctype html>
+<html>
+
+<head>
+    <title>dash.js Rocks</title>
+    <style>
+        video {
+            width: 640px;
+            height: 360px;
+        }
+    </style>
+</head>
+
+<body>
+    <div>
+        <video id="videoPlayer" controls></video>
+    </div>
+    <script type="module">
+        import { MediaPlayer } from '/js/dash.all.debug.js';
+
+        const player = MediaPlayer().create();
+
+        player.initialize(
+            document.querySelector('#videoPlayer'),
+            'encoded/chunks/manifest.mpd',
+            true
+        );
+
+        // Playback End event
+        window.dashPlaybackEnded = false;
+        player.on(dashjs.MediaPlayer.events.PLAYBACK_ENDED, function (e) {
+            window.dashPlaybackEnded = true;
+        });
+
+        // Dash event metrics
+        window.player = player;
+        window.dashEventLog = [];
+
+        // Helper to record events
+        function recordEvent(name, eventObj) {
+            window.dashEventLog.push({
+                name: name,
+                time: performance.now(),     // or Date.now()
+                data: eventObj
+            });
+        }
+
+        // List of dash.js events to monitor
+        const ev = dashjs.MediaPlayer.events;
+
+        const eventList = [
+            ev.BUFFER_EMPTY,
+            ev.BUFFER_LOADED,
+            ev.BUFFER_LEVEL_STATE_CHANGED,
+
+            ev.QUALITY_CHANGE_REQUESTED,
+            ev.QUALITY_CHANGE_RENDERED,
+
+            ev.REPRESENTATION_SWITCH,
+
+            ev.FRAGMENT_LOADING_STARTED,
+            ev.FRAGMENT_LOADING_COMPLETED,
+
+            ev.PLAYBACK_STARTED,
+            ev.PLAYBACK_PAUSED,
+            ev.PLAYBACK_SEEKED,
+            ev.PLAYBACK_TIME_UPDATED,
+            ev.PLAYBACK_ENDED,
+
+            ev.PLAYBACK_STALLED,
+            ev.PLAYBACK_WAITING,
+        ];
+
+        // Register everything
+        eventList.forEach(eventType => {
+            player.on(eventType, function (e) {
+                recordEvent(eventType, e);
+            });
+        });
+
+
+    </script>
+
+</body>
+
+</html>

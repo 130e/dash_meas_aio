@@ -4,113 +4,70 @@ Measurement pipeline for running ABR (Adaptive Bitrate) streaming tests between 
 
 ## Overview
 
-This project provides scripts and tools for conducting adaptive bitrate streaming experiments, including:
+This project provides scripts and tools for conducting adaptive bitrate streaming experiments.
 
-- Client-side measurement collection on Android devices
-- Server-side video streaming with ABR algorithms
-- Network capture and analysis tools
-- Custom DASH.js implementation with ABR algorithms
+**Video Server**
 
-## Project Status
+- DASH encoded videos, `ffmpeg`, `mp4box`
+- [dashjs](https://dashjs.org/) over HTTP server (`Caddy`)
+- `tcpdump`, `ss` scripts
 
-- [x] Dash video encoding scripts
-- [x] Headless Dash streaming scripts
-- [x] Server and Client network capture
-- [x] TCP measurements
-- [ ] QUIC measurements
-- [x] BOLA and FastMPC ABR algorithms
-  - [ ] Add chunk index to the log
-- [x] MPC tables compute script
-- [ ] Cellular full function test
-  - [ ] LTE RRC
-  - [ ] 5G RRC version issue
-  - [ ] OnePlus N30 support
-- [ ] Post processing scripts
-  - [ ] Cellular logs
-  - [x] TCP ss
-  - [ ] QUIC
-  - [x] ABR logs
-- [x] Use HTTP/2/3 to multiplexing over single connection
-- [ ] Fix occasional broken pipe bug when requesting chunks
-- [ ] Migrate to state-of-art dash.js
-- [ ] Caveat: phone does not support 8K HEVC codec
+**Android Device (video client)**
 
-## Quick Start
-
-### Prerequisites
-
-- Android device with Termux installed
-- Python 3.x on both client and server
-- Network access between client and server
-- Root access for network capture tools
-
-### Running Experiments
-
-1. **Start server-side captures** (see Server Setup section)
-2. **Connect to mobile device** and run client-side capture:
-
-   ```bash
-   sudo ./run_capture.sh {SERVER_IP}
-   ```
-
-3. **Connect laptop to UE** and run cellular capture:
-
-   ```bash
-   # Online mode (for debugging)
-   sudo ./cellular_monitor -p /dev/ttyUSB0 -b 9600 -s on output.txt
-   
-   # Offline mode
-   sudo ./cellular_monitor -p /dev/ttyUSB0 -b 9600 -s off raw.log
-   ```
-
-4. **Create new Termux session** (use hamburger button near ESC key)
-5. **Run experiment** (assuming remote video server is running):
-
-   ```bash
-   python client_run.py -a {bola|fastmpc} -t tcp -s {SERVER_IP} -i {EXPERIMENT_ID}
-   ```
+- Python script that loads DASH video
+- Log DASH metrics
+- (if rooted) `tcpdump` script
+- 5G log processing
 
 ## Installation
 
-### Client Setup (Android Device)
+### Server Setup
 
-#### 1. Install Termux
+Navigate to `server` directory. The server serves the `video_server/index.html`
 
-- Download and install Termux from F-Droid or Google Play
-- The client commands in this section are executed inside the Termux shell
+#### Prepare Video Content
 
-#### 2. Install Dependencies
+Encode one max quality video to multiple quality representations, then convert to dash chunks:
 
-```bash
+```shell
+python convert_dash.py ~/bbb_sunflower_native_60fps_normal.mp4 -o chunks -p bbb_sunflower -m manifest.mpd
+```
+
+By default, encoded chunks and manifest are `video_server/chunks`.
+
+#### Install server & dash
+
+- Install Caddy and lsquic.
+- Get a dashjs and put into `video_server/js` (included ESM debug version `5.0.0`)
+
+### Client Setup
+
+Setup Termux in Android.
+
+- Install Termux. Then inside a termux terminal,
+
+```shell
 # Allow Termux to access download folder, then restart Termux
 termux-setup-storage
-
 # Update package manager
 pkg update && pkg upgrade
-
 # Install Python and dependencies
 pkg install python python-numpy
-
 # Install Chromium for browser automation
 pkg install x11-repo tur-repo
 pkg install chromium
-
 # Install Selenium for web automation
 pip install selenium
-
 # (Optional) Install tcpdump for network capture
 pkg install root-repo tcpdump
-
 # Install Git and clone repository
 pkg install git
 git clone {THIS_REPO}
 ```
 
-#### 3. Test Installation (Optional)
+- (Optional) test
 
-Run tests to verify setup:
-
-```bash
+```shell
 # Test browser functionality
 # This opens a website and saves a page screenshot to `~/storage/downloads/screenshot.png`
 python client_browser_func_test.py
@@ -121,44 +78,24 @@ python client_browser_func_test.py
 python client_browser_https_test.py {SERVER_IP}
 ```
 
-### Server Setup
+## Run
 
-Navigate to `server` directory.
+### Server
 
-#### 1. Prepare Video Content
+#### Start Video Server
 
-- The `video_server/video_index.html` template provides a dummy page with modified `dash.js`
-- (Optional) Convert raw video to dash chunks
-
-```shell
-python convert_dash.py ~/bbb_sunflower_native_60fps_normal.mp4 -o chunks -p bbb_sunflower -m manifest.mpd
-```
-
-- Put dash encoded chunks and manifest into `video_server/chunks`
-
-##### Note
-
-- Client dash setup script expects `video_server/chunks/manifest.mpd`
-- ABR server is initialized locally on the client
-
-#### 2. Precompute MPC Table
-
-For FastMPC experiments, precompute the optimization table:
-
-```bash
-python generate_video_config.py {manifest.mpd} {video_directory}
-```
-
-Place the generated `video_config.json` in `client/abr_server/` in **client device** before running experiment.
-
-#### 3. Start Video Server
+The Caddy server serves two ports, HTTP at `5203` and HTTPS default.
 
 ```bash
 # Start Caddy server
 caddy run --config ./Caddyfile
 ```
 
-#### 4. Start Network Monitoring
+**HTTPS Note**:
+We use self-signed tls and it would not work unless the client explicitly trusts it (our script handles that).
+We need HTTPS to enforce HTTP2, which uses TCP connection multiplexing.
+
+#### Start Network Monitoring
 
 ```bash
 # Create captures directory
@@ -171,11 +108,19 @@ sudo tcpdump tcp -s 96 -C 1000 -Z $USER -w ./captures/server_$(date +%Y%m%d_%H%M
 sudo ./tcp_ss_monitor.sh 0 5202 0
 ```
 
-## Metrics and Logging
+### Client
 
-### ABR Server Metrics
+Inside termux,
 
-The ABR server scripts log the following metrics in the `results` folder:
+```shell
+python client_run_dash.py -s={SERVER_IP} -i=test
+```
+
+The scripts collect log [events](https://cdn.dashjs.org/latest/jsdoc/MediaPlayerEvents.html) exposed by dash player into `captures/*.json`.
+
+## Post-processing
+
+**TODO** Calculate QoE metrics.
 
 - **Timestamp**: Unix timestamp (seconds since epoch)
 - **Bitrate**: Selected bitrate (Kbps) for the video chunk
@@ -183,42 +128,6 @@ The ABR server scripts log the following metrics in the `results` folder:
 - **Rebuffer Time**: Time spent rebuffering (playback stalled) for this chunk
 - **Chunk Size**: Size (bytes) of the downloaded video chunk
 - **Download Time**: Time (ms) to download the video chunk
-- **Reward**: QoE value calculated by the ABR algorithm
-
-### Custom DASH.js Metrics
-
-Note for implementing custom abr server.
-The modified DASH.js implementation provides these additional metrics:
-
-```javascript
-var data = {
-  'nextChunkSize': next_chunk_size(lastRequested+1),
-  'Type': 'BB',
-  'lastquality': lastQuality,
-  'buffer': buffer,
-  'bufferAdjusted': bufferLevelAdjusted,
-  'bandwidthEst': bandwidthEst,
-  'lastRequest': lastRequested,
-  'RebufferTime': rebuffer,
-  'lastChunkFinishTime': lastHTTPRequest._tfinish.getTime(),
-  'lastChunkStartTime': lastHTTPRequest.tresponse.getTime(),
-  'lastChunkSize': last_chunk_size(lastHTTPRequest)
-};
-```
-
-## ABR Algorithms
-
-### BOLA
-
-Basic implementation of the BOLA (Buffer Occupancy based Lyapunov Algorithm) ABR algorithm.
-
-### FastMPC
-
-Implementation of Model Predictive Control (MPC) with optimization:
-
-> **Note:** MPC involves solving an optimization problem for each bitrate decision to maximize QoE over the next 5 video chunks. The FastMPC paper describes a method that precomputes solutions for quantized input values. Since the original FastMPC implementation is not publicly available, we implemented MPC by solving the optimization problem exactly on the ABR server by enumerating all possibilities for the next 5 chunks. Computation takes at most 27ms for 6 bitrate levels with negligible impact on QoE.
->
-> — [Pensieve](http://web.mit.edu/pensieve/)
 
 ## Time Synchronization
 
@@ -240,7 +149,6 @@ ntpdate -q 2.time.constant.com
 #### Client
 
 In termux, install `chrony` and configure it to use the same ntp server as the video server. Then manually check the offset.
-**TODO:** no systemd on termux thus we cannot run chrony as a service to sync time in rooted phone.
 
 ```bash
 # Install chrony
@@ -259,7 +167,3 @@ chronyd -f ~/.config/chrony/chrony.conf -d -Q
 ### Automatic Time Synchronization
 
 **TODO:** add a script to automatically sync time and extract offset.
-
-## Acknowledgments
-
-- ABR algorithms and DASH.js modifications are based on the [Pensieve](http://web.mit.edu/pensieve/) repository.

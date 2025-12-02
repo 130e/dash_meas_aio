@@ -4,15 +4,29 @@ import os
 import subprocess
 
 # Renditions: resolution + target bitrate (average)
+# renditions = {
+#     "360_1M": {"size": "640x360", "bv": "1500k"},
+#     "480_4M": {"size": "854x480", "bv": "4000k"},
+#     "720_8M": {"size": "1280x720", "bv": "7500k"},
+#     "1080_12M": {"size": "1920x1080", "bv": "12000k"},
+#     "1440_24M": {"size": "2560x1440", "bv": "24000k"},
+#     # "2160_35M": {"size": "3840x2160", "bv": "35M"},
+#     "2160_60M": {"size": "3840x2160", "bv": "60M"},
+#     # "4320": {"size": "7680x4320", "bv": "180M"}, # 8K support is spotty
+#     "2160_180M": {"size": "3840x2160", "bv": "180M"},  # Emulate 8K video
+# }
+
+# HLS renditions for h264
 renditions = {
-    "360_1M": {"size": "640x360", "bv": "1500k"},
-    "480_4M": {"size": "854x480", "bv": "4000k"},
-    "720_8M": {"size": "1280x720", "bv": "7500k"},
-    "1080_12M": {"size": "1920x1080", "bv": "12000k"},
-    "1440_24M": {"size": "2560x1440", "bv": "24000k"},
-    "2160_60M": {"size": "3840x2160", "bv": "60M"},
-    # "4320": {"size": "7680x4320", "bv": "180M"}, # 8K support is spotty
-    "2160_180M": {"size": "3840x2160", "bv": "180M"},  # Emulate 8K video
+    "145": {"size": "416x234", "bv": "145k", "fr": 30},
+    "365": {"size": "640x360", "bv": "365k", "fr": 30},
+    "730": {"size": "768x432", "bv": "365k", "fr": 30},
+    "1100": {"size": "768x432", "bv": "1100k", "fr": 30},
+    "2000": {"size": "960x540", "bv": "2000k", "fr": 60},
+    "3000": {"size": "1280x720", "bv": "3000k", "fr": 60},
+    "4500": {"size": "1280x720", "bv": "4500k", "fr": 60},
+    "6000": {"size": "1920x1080", "bv": "6000k", "fr": 60},
+    "7800": {"size": "1920x1080", "bv": "7800k", "fr": 60},
 }
 
 
@@ -67,11 +81,11 @@ def encode_variant(tag, settings, input_file, output_file):
         "-s",
         settings["size"],
         "-r",
-        "60",
+        str(settings["fr"]),
         "-g",
-        "240",
+        str(settings["fr"] * 10),
         "-keyint_min",
-        "240",
+        str(settings["fr"] * 10),
         "-sc_threshold",
         "0",
         "-profile:v",
@@ -112,14 +126,14 @@ def extract_audio(input_file, output_dir, prefix):
     return audio_file
 
 
-def package_dash(output_files, mpd_path, audio_file=None):
+def package_dash(output_files, mpd_path, segment_duration=4000, audio_file=None):
     print("Packaging DASH manifest...")
     cmd = [
         "MP4Box",
         "-dash",
-        "4000",
+        str(segment_duration),
         "-frag",
-        "4000",
+        str(segment_duration),
         "-rap",
         "-profile",
         "dashavc264:live",
@@ -160,6 +174,13 @@ def main():
         default="manifest.mpd",
         help="MPD filename (default: manifest.mpd)",
     )
+    parser.add_argument(
+        "-s",
+        "--segment_duration",
+        type=int,
+        default=4000,
+        help="DASH segment duration in milliseconds (default: 4000)",
+    )
     args = parser.parse_args()
 
     os.makedirs(args.output_dir, exist_ok=True)
@@ -190,7 +211,7 @@ def main():
     # Package into MPD
     chunk_dir = os.path.join(args.output_dir, "chunks")
     mpd_path = os.path.join(chunk_dir, args.mpd_name)
-    package_dash(video_files, mpd_path)
+    package_dash(video_files, mpd_path, segment_duration=args.segment_duration)
 
 
 if __name__ == "__main__":
