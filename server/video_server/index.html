@@ -16,6 +16,7 @@
         <video id="videoPlayer" controls></video>
     </div>
     <script type="module">
+        // Initialize
         import { MediaPlayer } from '/js/dash.all.debug.js';
 
         const player = MediaPlayer().create();
@@ -26,21 +27,22 @@
             true
         );
 
-        // Playback End event
+        // Dash event metrics for global access
+        window.player = player;
+        window.dashEventLog = [];
+
+        // Register playback end event for client script
         window.dashPlaybackEnded = false;
         player.on(dashjs.MediaPlayer.events.PLAYBACK_ENDED, function (e) {
             window.dashPlaybackEnded = true;
         });
 
-        // Dash event metrics
-        window.player = player;
-        window.dashEventLog = [];
-
-        // Helper to record events
+        // Helper to record events locally
         function recordEvent(name, eventObj) {
             window.dashEventLog.push({
                 name: name,
-                time: performance.now(),     // or Date.now()
+                perfTime: performance.now(), // relative to page load
+                wallTime: Date.now(), // absolute time in milliseconds since epoch
                 data: eventObj
             });
         }
@@ -59,12 +61,14 @@
             ev.REPRESENTATION_SWITCH,
 
             ev.FRAGMENT_LOADING_STARTED,
+            ev.FRAGMENT_LOADING_ABANDONED,
+            // ev.FRAGMENT_LOADING_PROGRESS,
             ev.FRAGMENT_LOADING_COMPLETED,
 
             ev.PLAYBACK_STARTED,
             ev.PLAYBACK_PAUSED,
             ev.PLAYBACK_SEEKED,
-            ev.PLAYBACK_TIME_UPDATED,
+            // ev.PLAYBACK_TIME_UPDATED,
             ev.PLAYBACK_ENDED,
 
             ev.PLAYBACK_STALLED,

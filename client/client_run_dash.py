@@ -13,7 +13,7 @@ CHROMEDRIVER_PATH = BIN_DIR + "/chromedriver"
 
 DEFAULT_VIDEO_SERVER_PORT = 5202
 DEFAULT_VIDEO_SERVER_HOSTNAME = "vodtest.local"
-DEFAULT_DURATION = 660
+DEFAULT_DURATION = 635 * 2  # 2x duration
 
 
 def setup_chrome_options(protocol, server_hostname, server_ip):
@@ -90,6 +90,12 @@ def main():
         type=int,
         help="Maximum time this script would wait",
     )
+    parser.add_argument(
+        "--page_timeout",
+        default=120,
+        type=int,
+        help="Maximum time to wait for page to load",
+    )
 
     args = parser.parse_args()
 
@@ -109,7 +115,7 @@ def main():
     target_url = f"https://{args.hostname}:{args.server_port}/index.html"
 
     # Navigate & load page
-    driver.set_page_load_timeout(30)
+    driver.set_page_load_timeout(args.page_timeout)
     print(f"Navigating to {target_url}...")
     try:
         driver.get(target_url)

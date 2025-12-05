@@ -110,10 +110,11 @@ sudo ./tcp_ss_monitor.sh 0 5202 0
 
 ### Client
 
-Inside termux,
+- Connect to logger tool
+- Start video streaming. Inside termux,
 
 ```shell
-python client_run_dash.py -s={SERVER_IP} -i=test
+python client_run_dash.py -s={SERVER_IP} -i={LOG_ID}
 ```
 
 The scripts collect log [events](https://cdn.dashjs.org/latest/jsdoc/MediaPlayerEvents.html) exposed by dash player into `captures/*.json`.

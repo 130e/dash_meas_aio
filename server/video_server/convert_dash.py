@@ -29,6 +29,8 @@ renditions = {
     "7800": {"size": "1920x1080", "bv": "7800k", "fr": 60},
 }
 
+# Next steps: test HEVC
+
 
 def parse_bitrate(bv_str):
     """Convert '800k' or '120M' into integer bits per second."""
