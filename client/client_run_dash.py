@@ -3,6 +3,7 @@ import json
 from datetime import datetime
 
 from selenium import webdriver
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
@@ -125,13 +126,28 @@ def main():
         driver.quit()
         return
 
-    # Wait for process
+    # Wait for page script to initialize (module scripts load asynchronously)
+    print("Waiting for page script to initialize...")
+    try:
+        WebDriverWait(driver, 30).until(
+            lambda d: d.execute_script(
+                "return typeof window.dashPlaybackEnded !== 'undefined';"
+            )
+        )
+        print("Page script initialized")
+    except TimeoutException:
+        print("Warning: Page script may not have initialized properly")
+    except Exception as e:
+        print(f"Error waiting for script initialization: {e}")
+
+    # Wait for playback to end
+    print("Waiting for playback to end...")
     try:
         WebDriverWait(driver, duration).until(
             lambda d: d.execute_script("return window.dashPlaybackEnded === true;")
         )
         print("Playback ended")
-    except TimeoutError:
+    except TimeoutException:
         print("Timeout reached while waiting for playback to end")
     except Exception as e:
         print(f"Error while waiting for playback to end: {e}")

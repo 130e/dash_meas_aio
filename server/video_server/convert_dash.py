@@ -17,7 +17,7 @@ import subprocess
 # }
 
 # HLS renditions for h264
-renditions = {
+h264_renditions = {
     "145": {"size": "416x234", "bv": "145k", "fr": 30},
     "365": {"size": "640x360", "bv": "365k", "fr": 30},
     "730": {"size": "768x432", "bv": "365k", "fr": 30},
@@ -30,6 +30,20 @@ renditions = {
 }
 
 # Next steps: test HEVC
+hevc_renditions = {
+    "160": {"size": "640x360", "bv": "160k", "fr": 30},
+    "360": {"size": "768x432", "bv": "360k", "fr": 30},
+    "730": {"size": "960x540", "bv": "730k", "fr": 30},
+    "1090": {"size": "960x540", "bv": "1090k", "fr": 30},
+    "1930": {"size": "960x540", "bv": "1930k", "fr": 60},
+    "2900": {"size": "1280x720", "bv": "2900k", "fr": 60},
+    "4080": {"size": "1280x720", "bv": "4080k", "fr": 60},
+    "5400": {"size": "1920x1080", "bv": "5400k", "fr": 60},
+    "7000": {"size": "1920x1080", "bv": "7000k", "fr": 60},
+    "9700": {"size": "2560x1440", "bv": "9700k", "fr": 60},
+    "13900": {"size": "3840x2160", "bv": "13900k", "fr": 60},
+    "20000": {"size": "3840x2160", "bv": "20000k", "fr": 60},
+}
 
 
 def parse_bitrate(bv_str):
@@ -50,7 +64,7 @@ def fmt_bitrate(bps):
         return f"{bps // 1000}k"
 
 
-def encode_variant(tag, settings, input_file, output_file):
+def encode_variant(tag, settings, input_file, output_file, segment_duration_sec=4):
     if not os.path.isfile(input_file):
         print("Sanity check: input video not found")
         return None
@@ -58,6 +72,11 @@ def encode_variant(tag, settings, input_file, output_file):
     bv = parse_bitrate(settings["bv"])
     maxrate = int(bv * 1.2)  # max bitrate
     bufsize = int(bv * 2.0)  # buffer
+
+    # Align GOP size with segment duration for proper DASH segmentation
+    # Keyframes should occur at segment boundaries (every segment_duration_sec)
+    gop_size = settings["fr"] * segment_duration_sec
+    keyint_min = settings["fr"] * segment_duration_sec
 
     cmd = [
         "ffmpeg",
@@ -85,9 +104,9 @@ def encode_variant(tag, settings, input_file, output_file):
         "-r",
         str(settings["fr"]),
         "-g",
-        str(settings["fr"] * 10),
+        str(gop_size),
         "-keyint_min",
-        str(settings["fr"] * 10),
+        str(keyint_min),
         "-sc_threshold",
         "0",
         "-profile:v",
@@ -139,6 +158,8 @@ def package_dash(output_files, mpd_path, segment_duration=4000, audio_file=None)
         "-rap",
         "-profile",
         "dashavc264:live",
+        "-bs-switching",
+        "no",
         "-out",
         mpd_path,
     ]
@@ -195,13 +216,18 @@ def main():
             f"Reuse encoded videos with prefix '{args.prefix}' from {args.output_dir}"
         )
     # Encode all video renditions
+    # renditions = h264_renditions
+    renditions = hevc_renditions
     video_files = []
+    segment_duration_sec = args.segment_duration / 1000.0  # Convert ms to seconds
     for tag, settings in renditions.items():
         output_file = os.path.join(args.output_dir, f"{args.prefix}_{tag}.mp4")
 
         if os.path.isfile(output_file):
             print(f"Skipping {tag}p - {output_file} already exists")
-        elif not encode_variant(tag, settings, args.input_video, output_file):
+        elif not encode_variant(
+            tag, settings, args.input_video, output_file, segment_duration_sec
+        ):
             raise ValueError("Encoding failed")
 
         video_files.append(output_file)
