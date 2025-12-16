@@ -1,5 +1,6 @@
 import argparse
 import json
+import time
 from datetime import datetime
 
 from selenium import webdriver
@@ -97,6 +98,12 @@ def main():
         type=int,
         help="Maximum time to wait for page to load",
     )
+    parser.add_argument(
+        "--log_collection_interval",
+        default=30,
+        type=int,
+        help="Interval in seconds for periodic log collection during playback",
+    )
 
     args = parser.parse_args()
 
@@ -140,26 +147,102 @@ def main():
     except Exception as e:
         print(f"Error waiting for script initialization: {e}")
 
-    # Wait for playback to end
-    print("Waiting for playback to end...")
+    # Initialize periodic log collection
+    event_log = []
+    last_collected_index = 0
+    log_collection_interval = args.log_collection_interval
+
+    def collect_new_logs():
+        """Collect new log entries since last collection"""
+        nonlocal last_collected_index, event_log
+        try:
+            current_length = driver.execute_script("return window.dashEventLog.length;")
+            if current_length > last_collected_index:
+                new_count = current_length - last_collected_index
+                # Collect in small chunks to avoid timeout
+                chunk_size = 500
+                for start_idx in range(
+                    last_collected_index, current_length, chunk_size
+                ):
+                    end_idx = min(start_idx + chunk_size, current_length)
+                    chunk = driver.execute_script(
+                        f"return JSON.stringify(window.dashEventLog.slice({start_idx}, {end_idx}));"
+                    )
+                    if chunk:
+                        event_log.extend(json.loads(chunk))
+                last_collected_index = current_length
+                print(
+                    f"Collected {new_count} new log entries (total: {len(event_log)})"
+                )
+        except Exception as e:
+            print(f"Warning: Error during periodic log collection: {e}")
+
+    # Wait for playback to end with periodic log collection
+    print("Waiting for playback to end (collecting logs periodically)...")
+    start_time = time.time()
+    playback_ended = False
+
     try:
-        WebDriverWait(driver, duration).until(
-            lambda d: d.execute_script("return window.dashPlaybackEnded === true;")
-        )
-        print("Playback ended")
-    except TimeoutException:
-        print("Timeout reached while waiting for playback to end")
+        while not playback_ended and (time.time() - start_time) < duration:
+            # Check if playback ended
+            try:
+                playback_ended = driver.execute_script(
+                    "return window.dashPlaybackEnded === true;"
+                )
+            except Exception:
+                pass
+
+            # Collect logs periodically
+            collect_new_logs()
+
+            if not playback_ended:
+                time.sleep(log_collection_interval)
+
+        if playback_ended:
+            print("Playback ended")
+        else:
+            print("Timeout reached while waiting for playback to end")
     except Exception as e:
         print(f"Error while waiting for playback to end: {e}")
 
-    # Collect logs
-    event_log = driver.execute_script("return window.dashEventLog;")
+    # Collect any remaining logs after playback ends
+    print("Collecting final event logs...")
+    driver.set_script_timeout(3600)  # Large timeout for final collection
+    try:
+        final_length = driver.execute_script("return window.dashEventLog.length;")
+        if final_length > last_collected_index:
+            remaining_count = final_length - last_collected_index
+            print(f"Collecting {remaining_count} remaining log entries...")
+            # Use small chunks for final collection
+            chunk_size = 500
+            for start_idx in range(last_collected_index, final_length, chunk_size):
+                end_idx = min(start_idx + chunk_size, final_length)
+                chunk = driver.execute_script(
+                    f"return JSON.stringify(window.dashEventLog.slice({start_idx}, {end_idx}));"
+                )
+                if chunk:
+                    event_log.extend(json.loads(chunk))
+            print(f"Final log collection complete (total: {len(event_log)} entries)")
+        else:
+            print(f"All logs already collected (total: {len(event_log)} entries)")
+    except Exception as e:
+        print(f"Error during final log collection: {e}")
+        # Try to get at least the count
+        try:
+            final_length = driver.execute_script("return window.dashEventLog.length;")
+            print(
+                f"Warning: Could not collect all logs. Expected {final_length}, got {len(event_log)}"
+            )
+        except Exception:
+            pass
+
     event_log_path = f"captures/{exp_id}.json"
 
     # Cleanup
     print("Quitting webdriver")
     driver.quit()
 
+    print("Writing event log to file...")
     with open(event_log_path, "w") as f:
         json.dump(event_log, f, indent=2)
         print(f"Event log saved to {event_log_path}")

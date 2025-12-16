@@ -65,14 +65,15 @@
             // ev.FRAGMENT_LOADING_PROGRESS,
             ev.FRAGMENT_LOADING_COMPLETED,
 
-            ev.PLAYBACK_STARTED,
-            ev.PLAYBACK_PAUSED,
-            ev.PLAYBACK_SEEKED,
+            ev.PLAYBACK_STARTED, // at beginning
+            ev.PLAYBACK_PAUSED,  // at manual pause
+            // ev.PLAYBACK_SEEKED,  // at manual seek
             // ev.PLAYBACK_TIME_UPDATED,
-            ev.PLAYBACK_ENDED,
+            ev.PLAYBACK_ENDED,   // at end
 
-            ev.PLAYBACK_STALLED,
-            ev.PLAYBACK_WAITING,
+            ev.PLAYBACK_STALLED, // at browser reports stalled
+            ev.PLAYBACK_WAITING, // at insufficient buffer data
+            ev.PLAYBACK_PLAYING  // resume after stalling
         ];
 
         // Register everything
