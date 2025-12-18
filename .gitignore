@@ -1,7 +1,5 @@
 .DS_Store
-reference/
 server/video_server/encoded/
 **/captures/
 **/results/
-*.png
 __pycache__
