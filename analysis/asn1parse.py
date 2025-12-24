@@ -30,12 +30,12 @@ def _cleanup_empty_dict(d: Dict[str, Any]) -> Dict[str, Any]:
     """
     Cleanup empty dictionaries from the nested dictionary.
     """
-    is_list_key = False
+    is_value_list = False
     for k, v in d.items():
         if isinstance(v, dict) and len(v) == 0:
-            is_list_key = True
+            is_value_list = True
             break
-    if is_list_key:
+    if is_value_list:
         result = []
         for k, v in d.items():
             if len(v) == 0:
@@ -49,7 +49,7 @@ def _cleanup_empty_dict(d: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
-def parse_asn1(lines: List[str]) -> tuple[dict[str, Any], int]:
+def parse_asn1(lines: List[str], root: Dict[str, Any]) -> int:
     """
     Parse ASN.1 notation text and return a nested dictionary structure.
     """
@@ -57,19 +57,22 @@ def parse_asn1(lines: List[str]) -> tuple[dict[str, Any], int]:
     values = []
     i = 0
     level = 0
+    root_key = None
+    body = {}
+    # consume empty lines till message header
     while i < len(lines) and len(values) == 0:
         line = lines[i].replace("::=", " ")
         values = _parse_line(line)
         level = _get_indentation_level(line)
         i += 1
     if len(values) == 2:
-        root = {values[1]: {}}
+        root_key = values[1]
     else:
         print(f"Invalid root line: {line}")
-        return {}, 0
+        return -1
 
     # Parse lines and build tree
-    stack = [(level, root)]
+    stack = [(level, body)]
     while i < len(lines):
         line = lines[i]
         values = _parse_line(line)
@@ -94,28 +97,20 @@ def parse_asn1(lines: List[str]) -> tuple[dict[str, Any], int]:
             level += 1
         i += 1
 
-    return _cleanup_empty_dict(root), i
+    # Cleanup empty dictionaries
+    body = _cleanup_empty_dict(body)
+    root[root_key] = body
+
+    # Return the number of lines parsed
+    return i
 
 
-def parse_asn1_text(text: str) -> Dict[str, Any]:
+def parse_asn1_text(text: str, root: Dict[str, Any]) -> int:
     """
     Parse ASN.1 notation text and return a nested dictionary structure.
     """
     lines = text.splitlines()
-    return parse_asn1(lines)
-
-
-def locate_pair(root: Dict[str, Any], key: str, value: str) -> List[str]:
-    """
-    Find a key value pair in the nested dictionary.
-    """
-    for k, v in root.items():
-        if k == key:
-            if v == value:
-                return [k]
-            else:
-                return [k] + locate_pair(v, key, value)
-    return []
+    return parse_asn1(lines, root)
 
 
 if __name__ == "__main__":
@@ -335,9 +330,18 @@ if __name__ == "__main__":
     """
 
     print("\n=== Parsing Sample 1 ===")
-    root1 = parse_asn1_text(sample1)
+    root1 = {}
+    lines1 = sample1.splitlines()
+    lines_parsed1 = parse_asn1(lines1, root1)
     print(json.dumps(root1, indent=2))
+    print(f"Lines parsed: {lines_parsed1}")
 
     print("\n=== Parsing Sample 2 ===")
-    root2 = parse_asn1_text(sample2)
+    root2 = {}
+    lines2 = sample2.splitlines()
+    lines_parsed2 = parse_asn1(lines2, root2)
     print(json.dumps(root2, indent=2))
+    print(f"Lines parsed: {lines_parsed2}")
+
+    # import code
+    # code.interact(local=dict(globals(), **locals()))

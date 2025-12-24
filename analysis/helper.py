@@ -40,6 +40,7 @@ def load_dash_log(log_path, filter_range=None):
 
         # Assign new fields to the event
         event["relTime"] = rel_ts
+        event["ts_ms"] = event["wallTime"]
         event["date"] = readable_date
         event["name"] = name
         event["index"] = i
@@ -238,3 +239,8 @@ def plot_chunk_loading(logs, event_map, ax):
         ]
         ax.legend(handles=legend_elements, loc="upper left")
     ax.grid(True, alpha=0.3)
+
+
+def plot_handover(ho_events, ax, color="tab:gray"):
+    for start, end in ho_events:
+        ax.axvspan(start, end, color=color, alpha=0.3)

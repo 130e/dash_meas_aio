@@ -39,12 +39,42 @@
 
         // Helper to record events locally
         function recordEvent(name, eventObj) {
-            window.dashEventLog.push({
+            record = {
                 name: name,
                 perfTime: performance.now(), // relative to page load
                 wallTime: Date.now(), // absolute time in milliseconds since epoch
-                data: eventObj
-            });
+            }
+            // Filter out some large logs
+            if (name === "qualityChangeRequested" || name === "qualityChangeRendered") {
+                const filteredData = { ...eventObj };
+                if (filteredData.newRepresentation) {
+                    filteredData.newRepresentation = {
+                        id: eventObj.newRepresentation.id,
+                        media: eventObj.newRepresentation.media,
+                    }
+                }
+                if (filteredData.oldRepresentation) {
+                    filteredData.oldRepresentation = {
+                        id: eventObj.oldRepresentation.id,
+                        media: eventObj.oldRepresentation.media,
+                    }
+                }
+                record.data = filteredData;
+            }
+            else if (name === "fragmentLoadingStarted" || name === "fragmentLoadingCompleted" || name === "fragmentLoadingAbandoned") {
+                const filteredData = { ...eventObj };
+                if (filteredData.request) {
+                    if (filteredData.request.representation) {
+                        delete filteredData.request.representation;
+                    }
+                }
+                record.data = filteredData;
+            }
+            else {
+                record.data = eventObj;
+            }
+
+            window.dashEventLog.push(record);
         }
 
         // List of dash.js events to monitor
@@ -59,7 +89,7 @@
             ev.QUALITY_CHANGE_REQUESTED,
             ev.QUALITY_CHANGE_RENDERED,
 
-            ev.REPRESENTATION_SWITCH,
+            // ev.REPRESENTATION_SWITCH,
 
             ev.FRAGMENT_LOADING_STARTED,
             ev.FRAGMENT_LOADING_ABANDONED,
