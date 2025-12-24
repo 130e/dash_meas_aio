@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Check if all required arguments are provided
-if [ $# -ne 3 ]; then
+if [ $# -ne 4 ]; then
     help
     exit 1
 fi
@@ -10,6 +10,7 @@ fi
 TARGET_IP="$1"
 TARGET_PORT="$2"
 DURATION="$3"
+TEST_ID="$4"
 
 # Apply defaults for 0 or negative values
 if [ "$TARGET_IP" -le 0 ] 2>/dev/null || [ "$TARGET_IP" = "0" ]; then
@@ -26,20 +27,20 @@ fi
 
 # Set the output log file with timestamp
 LOG_DIR="captures"
-LOG_FILE="${LOG_DIR}/ss_$(date +%Y%m%d_%H%M%S).log"
+LOG_FILE="${LOG_DIR}/${TEST_ID}_ss_$(date +%Y%m%d_%H%M%S).log"
 mkdir -p "$LOG_DIR"
 
 help() {
-    echo "Usage: $0 <remote_ip> <local_port> <duration_in_seconds>"
+    echo "Usage: $0 <remote_ip> <local_port> <duration_in_seconds> <test_id>"
     echo "  remote_ip: Remote IP address to monitor (0 or negative = any IP)"
     echo "  local_port: Local port to monitor (0 or negative = any port)"
     echo "  duration_in_seconds: How long to monitor (0 or negative = indefinitely)"
     echo ""
     echo "Examples:"
-    echo "  $0 0 0 0              # Monitor all remote IPs:all_local_ports indefinitely"
-    echo "  $0 0 80 0             # Monitor any_remote_IP:80 indefinitely"
-    echo "  $0 192.168.1.100 0 0  # Monitor 192.168.1.100:any_local_port indefinitely"
-    echo "  $0 192.168.1.100 80 60 # Monitor 192.168.1.100:80 for 60 seconds"
+    echo "  $0 0 0 0 test0              # Monitor all remote IPs:all_local_ports indefinitely"
+    echo "  $0 0 80 0 test1             # Monitor any_remote_IP:80 indefinitely"
+    echo "  $0 192.168.1.100 0 0 test2  # Monitor 192.168.1.100:any_local_port indefinitely"
+    echo "  $0 192.168.1.100 80 60 test3 # Monitor 192.168.1.100:80 for 60 seconds"
 }
 
 # Function to check if required commands exist
@@ -103,16 +104,7 @@ monitor_connection() {
 
 # Show usage if -h or --help is provided
 if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
-    echo "Usage: $0 <ip> <port> <duration_in_seconds>"
-    echo "  ip: IP address to monitor (0 or negative = any IP)"
-    echo "  port: Port to monitor (0 or negative = any port)"
-    echo "  duration_in_seconds: How long to monitor (0 or negative = indefinitely)"
-    echo ""
-    echo "Examples:"
-    echo "  $0 0 0 0              # Monitor all IPs:all_ports indefinitely"
-    echo "  $0 0 80 0             # Monitor any_IP:80 indefinitely"
-    echo "  $0 192.168.1.100 0 0  # Monitor 192.168.1.100:any_port indefinitely"
-    echo "  $0 192.168.1.100 80 60 # Monitor 192.168.1.100:80 for 60 seconds"
+    help
     exit 0
 fi
 
@@ -125,7 +117,7 @@ fi
 # Check dependencies before starting
 check_dependencies
 
-echo "Starting connection monitoring..."
+echo "Starting connection monitoring... Test ID: $TEST_ID"
 if [ -z "$TARGET_IP" ] && [ -z "$TARGET_PORT" ]; then
     echo "Target: all_IPs:all_ports"
 elif [ -z "$TARGET_IP" ]; then
@@ -135,7 +127,7 @@ elif [ -z "$TARGET_PORT" ]; then
 else
     echo "Target: ${TARGET_IP}:${TARGET_PORT}"
 fi
-echo "Logging to: $LOG_FILE"
+echo "Logging to: $LOG_FILE. Test ID: $TEST_ID"
 
 # Start monitoring with error handling
 monitor_connection

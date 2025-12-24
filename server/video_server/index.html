@@ -39,36 +39,56 @@
 
         // Helper to record events locally
         function recordEvent(name, eventObj) {
-            record = {
+            const record = {
                 name: name,
                 perfTime: performance.now(), // relative to page load
                 wallTime: Date.now(), // absolute time in milliseconds since epoch
-            }
+            };
             // Filter out some large logs
             if (name === "qualityChangeRequested" || name === "qualityChangeRendered") {
-                const filteredData = { ...eventObj };
-                if (filteredData.newRepresentation) {
-                    filteredData.newRepresentation = {
+                const summary = {
+                    isAdaptationSetSwitch: eventObj.isAdaptationSetSwitch,
+                    reason: eventObj.reason,
+                    type: eventObj.type,
+                };
+                if (eventObj.newRepresentation) {
+                    summary.newRepresentation = {
                         id: eventObj.newRepresentation.id,
                         media: eventObj.newRepresentation.media,
-                    }
+                    };
                 }
-                if (filteredData.oldRepresentation) {
-                    filteredData.oldRepresentation = {
+                if (eventObj.oldRepresentation) {
+                    summary.oldRepresentation = {
                         id: eventObj.oldRepresentation.id,
                         media: eventObj.oldRepresentation.media,
-                    }
+                    };
                 }
-                record.data = filteredData;
+                record.data = summary;
             }
             else if (name === "fragmentLoadingStarted" || name === "fragmentLoadingCompleted" || name === "fragmentLoadingAbandoned") {
-                const filteredData = { ...eventObj };
-                if (filteredData.request) {
-                    if (filteredData.request.representation) {
-                        delete filteredData.request.representation;
+                if (eventObj.request) {
+                    const summary = {
+                        request: {
+                            action: eventObj.request.action,
+                            index: eventObj.request.index,
+                            retryAttempts: eventObj.request.retryAttempts,
+                            startTime: eventObj.request.startTime,
+                            adaptationIndex: eventObj.request.adaptationIndex,
+                        }
+                    };
+                    if (eventObj.request.representation) {
+                        summary.request.representation = {
+                            id: eventObj.request.representation.id,
+                            media: eventObj.request.representation.media,
+                        };
                     }
+                    record.data = summary;
                 }
-                record.data = filteredData;
+                else {
+                    record.data = {
+                        request: null,
+                    };
+                }
             }
             else {
                 record.data = eventObj;
