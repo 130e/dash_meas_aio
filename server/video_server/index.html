@@ -50,6 +50,8 @@
                     isAdaptationSetSwitch: eventObj.isAdaptationSetSwitch,
                     reason: eventObj.reason,
                     type: eventObj.type,
+                    oldRepresentation: null,
+                    newRepresentation: null,
                 };
                 if (eventObj.newRepresentation) {
                     summary.newRepresentation = {
@@ -66,6 +68,9 @@
                 record.data = summary;
             }
             else if (name === "fragmentLoadingStarted" || name === "fragmentLoadingCompleted" || name === "fragmentLoadingAbandoned") {
+                const summary = {
+                    request: null,
+                };
                 if (eventObj.request) {
                     const summary = {
                         request: {
@@ -82,13 +87,8 @@
                             media: eventObj.request.representation.media,
                         };
                     }
-                    record.data = summary;
                 }
-                else {
-                    record.data = {
-                        request: null,
-                    };
-                }
+                record.data = summary;
             }
             else {
                 record.data = eventObj;

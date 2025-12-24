@@ -36,7 +36,7 @@ def load_dash_log(log_path, filter_range=None):
         event = logs[i]
         ts = event["wallTime"] / 1000.0
         readable_date = datetime.fromtimestamp(ts).strftime("%H:%M:%S")
-        name = event["data"]["type"]
+        name = event["name"]
 
         # Assign new fields to the event
         event["relTime"] = rel_ts
@@ -62,7 +62,10 @@ def plot_quality(logs, event_map, ax):
     if len(qc_events) == 0:
         print("Warning: no quality change data")
         return -1
-    if qc_events[0]["data"]["oldRepresentation"] is not None:
+    if (
+        "oldRepresentation" in qc_events[0]["data"]
+        and qc_events[0]["data"]["oldRepresentation"] is not None
+    ):
         first_old_rep_id = int(qc_events[0]["data"]["oldRepresentation"]["id"])
     for ev in qc_events[1:]:
         old_rep_id = int(ev["data"]["oldRepresentation"]["id"])
