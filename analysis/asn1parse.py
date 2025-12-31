@@ -215,14 +215,6 @@ def parse_value_pair_lines(lines: list[str], begin: int, root: Dict[str, Any]) -
     return i - begin
 
 
-def parse_asn1_packet_text(text: str) -> Dict[str, Any]:
-    """
-    Parse ASN.1 notation text and return a nested dictionary structure.
-    """
-    lines = text.splitlines()
-    return parse_asn1_packet(lines)
-
-
 def parse_asn1_packet(lines: List[str]) -> Dict[str, Any]:
     """
     Parse ASN.1 packet and return a nested dictionary structure.
@@ -281,7 +273,7 @@ def parse_entry(text_lines: list[str]) -> Optional[Entry]:
         log_subname = log_subname.strip()
     else:
         log_name = rest.strip()
-        log_subname = None
+        log_subname = ""
 
     entry = Entry(
         date=date,
@@ -291,13 +283,14 @@ def parse_entry(text_lines: list[str]) -> Optional[Entry]:
         log_code=log_code,
         log_name=log_name,
         log_subname=log_subname,
-        data=None,
     )
 
     # TODO: Process content lines if supported
     if len(text_lines) > 1:
         if entry.log_code in supported_logs:
             entry.data = parse_asn1_packet(text_lines[1:])
+        else:
+            entry.data = {"unsupported": text_lines[1:]}
     return entry
 
 
