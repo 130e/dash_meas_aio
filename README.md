@@ -101,11 +101,8 @@ We need HTTPS to enforce HTTP2, which uses TCP connection multiplexing.
 # Create captures directory
 mkdir -p ./captures
 
-# Start tcpdump capture
-sudo tcpdump tcp port 5202 -s 96 -C 1000 -Z $USER -w ./captures/server_$(date +%Y%m%d_%H%M%S).pcap
-
-# Monitor TCP socket statistics
-sudo ./tcp_ss_monitor.sh 0 5202 0 test0
+# Start network monitoring
+sudo ./monitor.sh 5202 test0
 ```
 
 ### Client
