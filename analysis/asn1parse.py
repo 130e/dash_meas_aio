@@ -16,7 +16,7 @@ supported_logs = {
 class Entry:
     date: str  # YYYY MMM DD
     time: str  # HH:MM:SS.mmm
-    ts_ms: int  # unix timestamp in milliseconds
+    ts: float  # unix timestamp in seconds
     unknown: str  # Code in brackets [XX]
     log_code: str  # 0xXXXX
     log_name: str  # log name corresponding to log code
@@ -71,13 +71,13 @@ def _cleanup_empty_dict(d: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
-def _get_epoch_ms(date_time_str: str) -> int:
+def _epoch_s(date_time_str: str) -> int:
     """
-    Get the epoch milliseconds from a date time string.
+    Get the epoch seconds from a date time string.
     """
     dt = datetime.strptime(date_time_str, "%Y %b %d %H:%M:%S.%f")
     dt = dt.replace(tzinfo=timezone.utc)
-    return int(dt.timestamp() * 1000.0)
+    return int(dt.timestamp())
 
 
 def parse_nested_pdu(lines: List[str], begin: int, root: Dict[str, Any]) -> int:
@@ -278,7 +278,7 @@ def parse_entry(text_lines: list[str]) -> Optional[Entry]:
     entry = Entry(
         date=date,
         time=time,
-        ts_ms=_get_epoch_ms(f"{date} {time}"),
+        ts=_epoch_s(f"{date} {time}"),
         unknown=unknown,
         log_code=log_code,
         log_name=log_name,

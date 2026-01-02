@@ -72,14 +72,12 @@
                     request: null,
                 };
                 if (eventObj.request) {
-                    const summary = {
-                        request: {
-                            action: eventObj.request.action,
-                            index: eventObj.request.index,
-                            retryAttempts: eventObj.request.retryAttempts,
-                            startTime: eventObj.request.startTime,
-                            adaptationIndex: eventObj.request.adaptationIndex,
-                        }
+                    summary.request = {
+                        action: eventObj.request.action,
+                        index: eventObj.request.index,
+                        retryAttempts: eventObj.request.retryAttempts,
+                        startTime: eventObj.request.startTime,
+                        adaptationIndex: eventObj.request.adaptationIndex,
                     };
                     if (eventObj.request.representation) {
                         summary.request.representation = {

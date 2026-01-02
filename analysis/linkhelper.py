@@ -82,7 +82,7 @@ class UESTAT:
             if self.ho_events:
                 last_ho = self.ho_events[-1]
                 if last_ho.end is None:
-                    last_ho.end = entry.ts_ms
+                    last_ho.end = entry.ts
 
         added_cells = []
         removed_cells = []
@@ -121,13 +121,13 @@ class UESTAT:
                     "Warning: New HO event without a previous HO completion",
                     "Likely previous HO failed",
                 )
-                self.ho_events[-1].end = entry.ts_ms
+                self.ho_events[-1].end = entry.ts
                 # code.interact(local=dict(globals(), **locals()))
             if ho_type is None:
                 ho_type = "intraSCG"
             self.ho_events.append(
                 HOEvent(
-                    begin=entry.ts_ms,
+                    begin=entry.ts,
                     end=None,
                     hoType=ho_type,
                     added_cells=added_cells,
@@ -198,7 +198,7 @@ def process_logs(
     parsed_entries = asn1parse.process_file(file_path)
     uestat = UESTAT()
     for entry in parsed_entries:
-        if filter_range[0] <= entry.ts_ms < filter_range[1]:
+        if filter_range[0] <= entry.ts < filter_range[1]:
             uestat.add_rrc(entry)
     return uestat
 

@@ -2,10 +2,19 @@ import json
 from collections import defaultdict
 from datetime import datetime
 
+import analyze_pcap
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
 
+# Utility functions
+# =========================
+def sync_time(time_seq, offset, start_ts=0):
+    return [t + offset + start_ts for t in time_seq]
+
+
+# DASH
+# =========================
 def load_dash_log(log_path, filter_range=None):
     # Handle potential file corruption by reading as binary first
     # and decoding with error handling
@@ -40,7 +49,7 @@ def load_dash_log(log_path, filter_range=None):
 
         # Assign new fields to the event
         event["relTime"] = rel_ts
-        event["ts_ms"] = event["wallTime"]
+        event["ts"] = ts
         event["date"] = readable_date
         event["name"] = name
         event["index"] = i
@@ -244,6 +253,43 @@ def plot_chunk_loading(logs, event_map, ax):
     ax.grid(True, alpha=0.3)
 
 
+# Link layer
+# =========================
 def plot_handover(ho_events, ax, color="tab:gray"):
     for start, end in ho_events:
         ax.axvspan(start, end, color=color, alpha=0.3)
+
+
+# PCAP
+# =========================
+def load_pcap_log(file_path, server_ip, server_port, offset=0):
+    print(f"Loading pcap log from {file_path}")
+    packets = analyze_pcap.run_tshark(file_path)
+    print(f"Found {len(packets)} packets")
+    start_time, ack_events, retrans_events, rtt_events = analyze_pcap.analyze_packets(
+        packets, server_ip, server_port
+    )
+    results = analyze_pcap.compute_statistics(ack_events, retrans_events, rtt_events)
+    analyze_pcap.print_summary(results)
+    # Sync time
+    if offset is not None:
+        for r in results:
+            r["time_second"] += offset + start_time
+    return results
+
+
+def plot_pcap_stat(results, label, ax):
+    """
+    results: list of dicts, each dict has the following keys:
+    - time_second: int
+    - throughput_mbps: float
+    - packet_loss: int
+    - mean_rtt: float
+    label: which metric to plot
+    ax: matplotlib axis
+    """
+    ax.set_ylabel(label)
+    x = [r["time_second"] for r in results]
+    y = [r[label] for r in results]
+    ax.plot(x, y, label=label)
+    ax.grid(True, alpha=0.3)
