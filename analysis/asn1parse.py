@@ -10,6 +10,7 @@ supported_logs = {
     },
     "0xB821": {"RRC_RECONFIG", "RRC_RECONFIG_COMPLETE"},
 }
+supported_table_logs = {"0xB0A1", "0xB840"}
 
 
 @dataclass
@@ -215,6 +216,181 @@ def parse_value_pair_lines(lines: list[str], begin: int, root: Dict[str, Any]) -
     return i - begin
 
 
+def _split_pipe_columns(line: str) -> List[str]:
+    parts = [part.strip() for part in line.strip().split("|")]
+    if parts and parts[0] == "":
+        parts = parts[1:]
+    if parts and parts[-1] == "":
+        parts = parts[:-1]
+    return parts
+
+
+def _is_table_row(line: str) -> bool:
+    stripped = line.strip()
+    return stripped.startswith("|") and bool(re.match(r"^\|\s*\d+", stripped))
+
+
+def _parse_table_rows(
+    lines: List[str], begin: int, columns: List[str]
+) -> tuple[List[Dict[str, str]], int]:
+    i = begin
+    while i < len(lines) and not _is_table_row(lines[i]):
+        i += 1
+
+    rows: List[Dict[str, str]] = []
+    while i < len(lines):
+        line = lines[i]
+        if _is_table_row(line):
+            values = _split_pipe_columns(line)
+            if len(values) < len(columns):
+                values += [""] * (len(columns) - len(values))
+            if len(values) > len(columns):
+                values = values[: len(columns)]
+            rows.append(dict(zip(columns, values)))
+            i += 1
+            continue
+        if rows and not line.strip():
+            i += 1
+            break
+        if line.strip().startswith("-") or line.strip().startswith("|"):
+            i += 1
+            continue
+        if rows:
+            break
+        i += 1
+
+    return rows, i - begin
+
+
+def parse_b0a1_packet(lines: List[str]) -> Dict[str, Any]:
+    data: Dict[str, Any] = {
+        "metadata": {},
+        "pdcp_state": [],
+        "meta_log_buffer": [],
+    }
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+        if not line:
+            i += 1
+            continue
+        if line in {"PDCP State", "Meta Log Buffer"}:
+            break
+        if "=" in line:
+            key, value = line.split("=", 1)
+            data["metadata"][key.strip()] = value.strip()
+            i += 1
+            continue
+        break
+
+    pdcp_columns = [
+        "#",
+        "RB Cfg Index",
+        "PDCP SN Length",
+        "RX Deliv",
+        "Rx Next",
+        "Next Count",
+    ]
+    meta_columns = [
+        "#",
+        "FN",
+        "SFN",
+        "Rx Timetick",
+        "Cfg Index",
+        "Key Index",
+        "RLC Path",
+        "Route Status",
+        "Header[0]",
+        "Header[1]",
+        "Start Count",
+        "End Count",
+        "RLC end SN",
+        "Number IP Pkts",
+        "Number IP bytes",
+    ]
+
+    while i < len(lines):
+        line = lines[i].strip()
+        if line == "PDCP State":
+            rows, consumed = _parse_table_rows(lines, i + 1, pdcp_columns)
+            data["pdcp_state"] = rows
+            i += consumed + 1
+            continue
+        if line == "Meta Log Buffer":
+            rows, consumed = _parse_table_rows(lines, i + 1, meta_columns)
+            data["meta_log_buffer"] = rows
+            i += consumed + 1
+            continue
+        i += 1
+
+    return data
+
+
+def parse_b840_packet(lines: List[str]) -> Dict[str, Any]:
+    data: Dict[str, Any] = {
+        "metadata": {},
+        "pdcp_state": [],
+        "meta_log_buffer": [],
+    }
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+        if not line:
+            i += 1
+            continue
+        if line in {"PDCP State", "Meta Log Buffer"}:
+            break
+        if "=" in line:
+            key, value = line.split("=", 1)
+            data["metadata"][key.strip()] = value.strip()
+            i += 1
+            continue
+        break
+
+    pdcp_columns = [
+        "#",
+        "RB Cfg Index",
+        "PDCP SN Length",
+        "RX_DELIV",
+        "RX_NEXT",
+        "NEXT COUNT",
+    ]
+    meta_columns = [
+        "#",
+        "Slot",
+        "Frame",
+        "Timetick",
+        "NLO",
+        "Cfg Index",
+        "Key Index",
+        "RLC Path",
+        "Route Status",
+        "Header[0]",
+        "Header[1]",
+        "Start Count",
+        "End Count",
+        "RLC end SN",
+        "Number IP Pkts",
+        "Number IP bytes",
+    ]
+
+    while i < len(lines):
+        line = lines[i].strip()
+        if line == "PDCP State":
+            rows, consumed = _parse_table_rows(lines, i + 1, pdcp_columns)
+            data["pdcp_state"] = rows
+            i += consumed + 1
+            continue
+        if line == "Meta Log Buffer":
+            rows, consumed = _parse_table_rows(lines, i + 1, meta_columns)
+            data["meta_log_buffer"] = rows
+            i += consumed + 1
+            continue
+        i += 1
+
+    return data
+
+
 def parse_asn1_packet(lines: List[str]) -> Dict[str, Any]:
     """
     Parse ASN.1 packet and return a nested dictionary structure.
@@ -287,7 +463,11 @@ def parse_entry(text_lines: list[str]) -> Optional[Entry]:
 
     # TODO: Process content lines if supported
     if len(text_lines) > 1:
-        if entry.log_code in supported_logs:
+        if entry.log_code == "0xB0A1":
+            entry.data = parse_b0a1_packet(text_lines[1:])
+        elif entry.log_code == "0xB840":
+            entry.data = parse_b840_packet(text_lines[1:])
+        elif entry.log_code in supported_logs:
             entry.data = parse_asn1_packet(text_lines[1:])
         else:
             entry.data = {"unsupported": text_lines[1:]}
