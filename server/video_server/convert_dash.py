@@ -29,7 +29,7 @@ h264_renditions = {
     "7800": {"size": "1920x1080", "bv": "7800k", "fr": 60},
 }
 
-# Next steps: test HEVC
+# HEVC renditions
 hevc_renditions = {
     "160": {"size": "640x360", "bv": "160k", "fr": 30},
     "360": {"size": "768x432", "bv": "360k", "fr": 30},
@@ -43,6 +43,19 @@ hevc_renditions = {
     "9700": {"size": "2560x1440", "bv": "9700k", "fr": 60},
     "13900": {"size": "3840x2160", "bv": "13900k", "fr": 60},
     "20000": {"size": "3840x2160", "bv": "20000k", "fr": 60},
+}
+
+# VR bitrate ladder for emulating VR applications
+# Bitrates: 5, 10, 25, 50, 100, 250, 400 Mbps
+# All resolutions capped at 3840x2160 (4K) for device compatibility
+vr_renditions = {
+    "5M": {"size": "1920x1080", "bv": "5M", "fr": 30},  # Low-end VR
+    "10M": {"size": "2560x1440", "bv": "10M", "fr": 30},  # Mid-range VR
+    "25M": {"size": "2560x1440", "bv": "25M", "fr": 30},  # 4K equirectangular
+    "50M": {"size": "3840x2160", "bv": "50M", "fr": 60},  # 4K
+    "100M": {"size": "3840x2160", "bv": "100M", "fr": 60},  # 4K (capped)
+    "250M": {"size": "3840x2160", "bv": "250M", "fr": 60},  # 4K (capped)
+    "400M": {"size": "3840x2160", "bv": "400M", "fr": 60},  # 4K (capped)
 }
 
 
@@ -217,7 +230,8 @@ def main():
         )
     # Encode all video renditions
     # renditions = h264_renditions
-    renditions = hevc_renditions
+    # renditions = hevc_renditions
+    renditions = vr_renditions
     video_files = []
     segment_duration_sec = args.segment_duration / 1000.0  # Convert ms to seconds
     for tag, settings in renditions.items():

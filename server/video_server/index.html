@@ -42,7 +42,7 @@
             const record = {
                 name: name,
                 perfTime: performance.now(), // relative to page load
-                wallTime: Date.now(), // absolute time in milliseconds since epoch
+                wallTime: Date.now(), // Epoch timestamp in ms (UTC)
             };
             // Filter out some large logs
             if (name === "qualityChangeRequested" || name === "qualityChangeRendered") {
