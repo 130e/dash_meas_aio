@@ -1,15 +1,12 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 
+from chrome_setup import CHROMEDRIVER_PATH, build_chrome_options
+
 # Check device codec support
 # Run in termux shell
 
-CHROMEDRIVER_PATH = "/data/data/com.termux/files/usr/bin/chromedriver"
-
-options = webdriver.ChromeOptions()
-options.add_argument("--no-sandbox")
-options.add_argument("--headless")
-options.add_argument("--autoplay-policy=no-user-gesture-required")
+options = build_chrome_options(autoplay=True)
 driver = webdriver.Chrome(service=Service(CHROMEDRIVER_PATH), options=options)
 
 codec_support = driver.execute_script(

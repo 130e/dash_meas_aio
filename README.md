@@ -17,7 +17,6 @@ This project provides scripts and tools for conducting adaptive bitrate streamin
 - Python script that loads DASH video
 - Log DASH metrics
 - (if rooted) `tcpdump` script
-- 5G log processing
 
 ## Installation
 
@@ -53,23 +52,35 @@ termux-setup-storage
 pkg update && pkg upgrade
 # Install Python and dependencies
 pkg install python python-numpy
-# Install Chromium for browser automation
-pkg install x11-repo tur-repo
-pkg install chromium
 # Install Selenium for web automation
 pip install selenium
-# (Optional) Install tcpdump for network capture
-pkg install root-repo tcpdump
 # Install Git and clone repository
 pkg install git
 git clone {THIS_REPO}
+# (Optional) Install tcpdump for network capture
+pkg install root-repo tcpdump
+```
+
+For Chromium, we use a known-good build from tur-repo. The latest version enforces restriction on single-process mode and won't work.
+
+```shell
+# Install required repositories
+pkg install x11-repo tur-repo
+pkg update
+# Install known-good Chromium build from tur:
+pkg install "chromium=133.0.6943.141"
+# Prevent upgrades to newer Chromium builds
+apt-mark hold chromium
+# Verify installed Chromium/ChromeDriver versions
+chromium-browser --version
+chromedriver --version
 ```
 
 - (Optional) test
 
 ```shell
 # Test browser functionality
-# This opens a website and saves a page screenshot to `~/storage/downloads/screenshot.png`
+# This opens a website and saves a page screenshot to `./screenshot.png`
 python client_browser_func_test.py
 
 # Test browser https functionality

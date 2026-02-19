@@ -1,14 +1,12 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 
+from chrome_setup import CHROMEDRIVER_PATH, build_chrome_options
+
 # Basic test for selenium
 # Run in termux shell
 
-CHROMEDRIVER_PATH = "/data/data/com.termux/files/usr/bin/chromedriver"
-
-options = webdriver.ChromeOptions()
-options.add_argument("--no-sandbox")
-options.add_argument("--headless")
+options = build_chrome_options()
 driver = webdriver.Chrome(service=Service(CHROMEDRIVER_PATH), options=options)
 driver.get("https://archlinux.org")
 driver.save_screenshot("./screenshot.png")

@@ -5,14 +5,12 @@ from datetime import datetime
 
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 
-# Run in termux shell
-BIN_DIR = "/data/data/com.termux/files/usr/bin"
-CHROMEDRIVER_PATH = BIN_DIR + "/chromedriver"
+from chrome_setup import CHROMEDRIVER_PATH, build_chrome_options
 
+# Run in termux shell
 DEFAULT_VIDEO_SERVER_PORT = 5202
 DEFAULT_VIDEO_SERVER_HOSTNAME = "vodtest.local"
 DEFAULT_DURATION = 635 * 2  # 2x duration
@@ -20,31 +18,15 @@ DEFAULT_DURATION = 635 * 2  # 2x duration
 
 def setup_chrome_options(protocol, server_hostname, server_ip):
     """Setup Chrome options based on transport protocol"""
-    chrome_options = Options()
-
-    # Disable QUIC (HTTP/3)
-    if protocol == "tcp":
-        chrome_options.add_argument("--disable-quic")
-        chrome_options.add_argument("--disable-features=HTTP3")
-        chrome_options.add_argument("--enable-features=NetworkService,AllowHTTP2")
-
-    chrome_options.add_argument("--disable-http-cache")  # Optional for testing
-    chrome_options.add_argument(
-        f"--host-resolver-rules=MAP {server_hostname} {server_ip}"
+    chrome_options = build_chrome_options(
+        ignore_cert_errors=True,
+        disable_quic=(protocol == "tcp"),
+        host_resolver_map=f"{server_hostname} {server_ip}",
+        autoplay=True,
     )
-
-    chrome_options.add_argument("--ignore-certificate-errors")
-    chrome_options.add_argument("--ignore-ssl-errors")
+    chrome_options.add_argument("--disable-http-cache")  # Optional for testing
     chrome_options.add_argument("--disable-web-security")
     chrome_options.add_argument("--allow-running-insecure-content")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--headless=new")
-
-    # Allow autoplay in headless mode
-    chrome_options.add_argument("--autoplay-policy=no-user-gesture-required")
-    chrome_options.add_argument("--disable-background-timer-throttling")
-    chrome_options.add_argument("--disable-backgrounding-occluded-windows")
-    chrome_options.add_argument("--disable-renderer-backgrounding")
 
     return chrome_options
 
