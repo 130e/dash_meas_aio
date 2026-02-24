@@ -125,6 +125,12 @@ sudo ./monitor.sh 5202 test0
 python client_run_dash.py -s={SERVER_IP} -i={LOG_ID}
 ```
 
+For infinite auto-rerun mode (until you terminate the process), use:
+
+```shell
+python client_run_dash.py -s={SERVER_IP} -i={LOG_ID} -r
+```
+
 The scripts collect log [events](https://cdn.dashjs.org/latest/jsdoc/MediaPlayerEvents.html) exposed by dash player into `captures/*.json`.
 
 ## Post-processing
