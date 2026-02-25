@@ -34,6 +34,12 @@ def setup_chrome_options(protocol, server_hostname, server_ip):
 
 
 def parse_args():
+    def positive_int(value):
+        int_value = int(value)
+        if int_value < 1:
+            raise argparse.ArgumentTypeError("must be an integer >= 1")
+        return int_value
+
     parser = argparse.ArgumentParser(description="Run video with ABR algorithm")
     parser.add_argument(
         "-i",
@@ -45,8 +51,10 @@ def parse_args():
     parser.add_argument(
         "-r",
         "--rerun",
-        action="store_true",
-        help="Enable infinite auto-rerun mode (5s between runs)",
+        default=1,
+        type=positive_int,
+        metavar="N",
+        help="Number of runs to perform (integer >= 1). -r=1 is a single run",
     )
     parser.add_argument(
         "-t",
@@ -274,25 +282,22 @@ def main():
     args = parse_args()
     used_ids = set()
 
-    if not args.rerun:
-        run_exp_id = make_run_exp_id(args.exp_id, used_ids)
-        run_once(args, run_exp_id)
-        return
-
+    total_runs = args.rerun
+    completed_runs = 0
     print(
-        f"Auto-rerun enabled: experiment will run continuously until interrupted (delay={RERUN_DELAY_SECONDS}s)"
+        f"Scheduled {total_runs} run(s) with {RERUN_DELAY_SECONDS}s delay between runs."
     )
-    run_count = 0
     try:
-        while True:
-            run_count += 1
+        for run_count in range(1, total_runs + 1):
             run_exp_id = make_run_exp_id(args.exp_id, used_ids)
             print(f"\n--- Run #{run_count} ---")
             run_once(args, run_exp_id)
-            print(f"Sleeping {RERUN_DELAY_SECONDS}s before next run...")
-            time.sleep(RERUN_DELAY_SECONDS)
+            completed_runs = run_count
+            if run_count < total_runs:
+                print(f"Sleeping {RERUN_DELAY_SECONDS}s before next run...")
+                time.sleep(RERUN_DELAY_SECONDS)
     except KeyboardInterrupt:
-        print("\nAuto-rerun interrupted by user. Exiting.")
+        print(f"\nExecution interrupted by user after {completed_runs} completed run(s). Exiting.")
 
 
 if __name__ == "__main__":

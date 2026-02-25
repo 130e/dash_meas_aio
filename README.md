@@ -125,10 +125,10 @@ sudo ./monitor.sh 5202 test0
 python client_run_dash.py -s={SERVER_IP} -i={LOG_ID}
 ```
 
-For infinite auto-rerun mode (until you terminate the process), use:
+To run multiple experiments in sequence, use `-r=N` where `N` is the total number of runs (`-r=1` is equivalent to a single run):
 
 ```shell
-python client_run_dash.py -s={SERVER_IP} -i={LOG_ID} -r
+python client_run_dash.py -s={SERVER_IP} -i={LOG_ID} -r=3
 ```
 
 The scripts collect log [events](https://cdn.dashjs.org/latest/jsdoc/MediaPlayerEvents.html) exposed by dash player into `captures/*.json`.
